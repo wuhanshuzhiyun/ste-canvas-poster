@@ -1,0 +1,143 @@
+{
+  "id": "ste-canvas-poster",
+  "displayName": "ste-canvas-poster",
+  "name": "ste-canvas-poster",
+  "version": "1.0.0",
+  "description": "基于 Canvas 2D API 的声明式海报绘制引擎，支持微信小程序与 APP 双端",
+  "type": "module",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./index.js"
+    },
+    "./types": {
+      "types": "./types.d.ts"
+    }
+  },
+  "keywords": [
+    "canvas",
+    "poster",
+    "uni-app",
+    "wechat-miniprogram",
+    "schema-driven",
+    "qrcode",
+    "flex-layout",
+    "canvas-poster",
+    "declarative"
+  ],
+  "repository": "https://github.com/wuhanshuzhiyun/ste-canvas-poster",
+  "engines": {
+    "HBuilderX": "^3.1.0",
+    "uni-app": "^3.1.0",
+    "uni-app-x": "^3.1.0"
+  },
+  "dcloudext": {
+    "type": "sdk",
+    "sale": {
+      "regular": {
+        "price": "0.00"
+      },
+      "sourcecode": {
+        "price": "0.00"
+      }
+    },
+    "contact": {
+      "qq": ""
+    },
+    "declaration": {
+      "ads": "",
+      "data": "",
+      "permissions": ""
+    },
+    "npmurl": "https://www.npmjs.com/package/ste-canvas-poster",
+    "darkmode": "-",
+    "i18n": "-",
+    "widescreen": "-"
+  },
+  "uni_modules": {
+    "dependencies": [],
+    "encrypt": [],
+    "platforms": {
+      "cloud": {
+        "tcb": "x",
+        "aliyun": "x",
+        "alipay": "x"
+      },
+      "client": {
+        "uni-app": {
+          "vue": {
+            "vue2": "y",
+            "vue3": "y"
+          },
+          "web": {
+            "safari": "n",
+            "chrome": "n"
+          },
+          "app": {
+            "vue": "y",
+            "nvue": "n",
+            "android": "y",
+            "ios": "y",
+            "harmony": "-"
+          },
+          "mp": {
+            "weixin": "y",
+            "alipay": "n",
+            "toutiao": "n",
+            "baidu": "n",
+            "kuaishou": "n",
+            "jd": "n",
+            "harmony": "n",
+            "qq": "n",
+            "lark": "n",
+            "xhs": "n"
+          },
+          "quickapp": {
+            "huawei": "n",
+            "union": "n"
+          }
+        },
+        "uni-app-x": {
+          "web": {
+            "safari": "n",
+            "chrome": "n"
+          },
+          "app": {
+            "android": "-",
+            "ios": "-",
+            "harmony": "-"
+          },
+          "mp": {
+            "weixin": "-"
+          }
+        }
+      }
+    }
+  },
+  "sideEffects": false,
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "types.d.ts",
+    "CHANGELOG.md",
+    "README.md",
+    "LICENSE",
+    "src/measureText.js",
+    "src/posterAdapter.js",
+    "src/posterEngine.js",
+    "src/qrcodeGenerator.js"
+  ],
+  "license": "ISC",
+  "author": {
+    "name": "yajun.xu"
+  },
+  "bugs": {
+    "url": "https://github.com/wuhanshuzhiyun/ste-canvas-poster/issues"
+  },
+  "homepage": "https://github.com/wuhanshuzhiyun/ste-canvas-poster#readme",
+  "publishConfig": {
+    "access": "public"
+  }
+}
