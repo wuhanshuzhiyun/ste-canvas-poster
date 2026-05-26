@@ -232,16 +232,6 @@ function measureText(text: string, fontSize: number, bold?: boolean): number;
 
 **返回值**：文本宽度（rpx），向上取整
 
-典型用途 — 配合 Flex 布局计算容器宽度：
-
-```javascript
-import { measureText } from 'ste-canvas-poster';
-
-const textWidth = Math.min(measureText(nickname, 24), 300);
-// 在 schema 中使用
-{ type: 'text', text: '{{nickname}}', css: { width: textWidth, height: 24, fontSize: 24 } }
-```
-
 ---
 
 ## Schema 规范
@@ -501,25 +491,6 @@ Canvas 内部尺寸小于元素坐标范围。确保 `canvas.width/height` 不�
 ### 图片加载失败
 
 数据中的图片路径字段名需以 `Image`/`Img`/`Url`/`Src`/`Photo`/`Pic` 结尾，或完整匹配 `background`/`qrcode`/`cover`/`avatar`，引擎才会自动解析路径。
-
-### Flex 布局中 text 子元素位置不正确
-
-Canvas 无法在绘制前测量文本尺寸，Flex 布局依赖子元素显式声明的 `width`/`height` 来计算位置。text 子元素若未设置，会被视为尺寸 0。
-
-**解决**：为 text 子元素显式设置 `width` 和 `height`，配合 `measureText` 动态计算宽度：
-
-```javascript
-import { measureText } from 'ste-canvas-poster';
-
-const textWidth = Math.min(measureText(nickname, 24), 300);
-{ type: 'text', text: '{{nickname}}', css: { width: textWidth, height: 24 } }
-```
-
-若不方便预计算宽度，可改用绝对定位（`left`/`top`）替代 Flex 布局。
-
-### 导出图片圆角看起来不生效
-
-画布默认背景是透明的，圆角外区域也是透明。如果查看器/聊天窗口是白底，透明区域和白底融为一体看起来像没有圆角。设置 `background: '#FFFFFF'` 即可明显看到圆角效果。
 
 ---
 
