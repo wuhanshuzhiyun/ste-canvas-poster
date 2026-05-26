@@ -327,7 +327,7 @@ export async function renderPoster({
   let preloadedData = data;
 
   // #ifdef APP-PLUS
-  preloadedData = await preloadSchemaImages(transformedSchema, resolvedData);
+  preloadedData = await preloadSchemaImages(transformedSchema, data);
   // #endif
 
   const canvas = await getCanvasNode(selector, vm);

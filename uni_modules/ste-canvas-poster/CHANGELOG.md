@@ -24,3 +24,9 @@ All notable changes to this project will be documented in this file.
 ### 移除遗留代码
 
 - 移除原项目中对URL解析的依赖
+
+## 1.0.2 (2026-05-26)
+
+### BUG修复
+
+- 修复APP图片加载BUG
