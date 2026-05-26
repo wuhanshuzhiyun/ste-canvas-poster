@@ -16,67 +16,6 @@
 import { PosterEngine } from "./posterEngine.js";
 
 // ─────────────────────────────────────────────
-// 工具函数
-// ─────────────────────────────────────────────
-
-/**
- * 判断是否为完整 URL
- * @param {string} src
- * @returns {boolean}
- */
-function isFullUrl(src) {
-  if (!src) return false;
-  return (
-    /^https?:\/\//i.test(src) ||
-    /^data:image/i.test(src) ||
-    /^wxfile:/i.test(src)
-  );
-}
-
-/**
- * 解析图片路径（相对路径 → 完整 URL）
- * @param {string} src
- * @returns {string}
- */
-function resolveImagePath(src) {
-  if (!src) return "";
-  if (isFullUrl(src)) return src;
-  // #ifdef APP-PLUS
-  if (/^(file:|\/var\/|\/storage\/)/i.test(src)) return src;
-  // #endif
-  return src;
-}
-
-/**
- * 深度解析数据对象中的所有图片路径
- * @param {Object} data
- * @returns {Object}
- */
-const IMAGE_KEY_SUFFIX_RE = /(Image|Img|Url|Src|Photo|Pic)$/i;
-const IMAGE_KEY_EXACT_RE = /^(background|qrcode|cover|avatar)$/i;
-
-function resolveDataImages(data) {
-  if (!data || typeof data !== "object") return data;
-
-  let resolved = null;
-  for (const [key, value] of Object.entries(data)) {
-    if (
-      typeof value === "string" &&
-      (IMAGE_KEY_SUFFIX_RE.test(key) || IMAGE_KEY_EXACT_RE.test(key))
-    ) {
-      const newPath = resolveImagePath(value);
-      if (newPath !== value) {
-        if (!resolved) {
-          resolved = { ...data };
-        }
-        resolved[key] = newPath;
-      }
-    }
-  }
-  return resolved || data;
-}
-
-// ─────────────────────────────────────────────
 // 辅助：rpx → px 转换
 // ─────────────────────────────────────────────
 
@@ -151,7 +90,10 @@ function transformSchemaRpx(schema) {
       if (value && typeof value === "object") {
         traverseInPlace(value);
       } else if (shouldTransform(value)) {
-        if (NON_DIMENSION_KEYS.has(key) || (key === "fontWeight" && typeof value === "number")) {
+        if (
+          NON_DIMENSION_KEYS.has(key) ||
+          (key === "fontWeight" && typeof value === "number")
+        ) {
           continue;
         }
         obj[key] = transformValue(value, scale);
@@ -260,7 +202,7 @@ async function preloadSchemaImages(schema, data = {}) {
             // 下载失败保留原值
           }),
       );
-}
+    }
   }
 
   await Promise.all(promises);
@@ -378,11 +320,11 @@ export async function renderPoster({
   const schemaCopy = JSON.parse(JSON.stringify(schema));
 
   // 自动将 schema 中的 rpx 转换为 px（业务层可以直接使用设计稿的 rpx 值）
-  const transformedSchema = useRpx ? transformSchemaRpx(schemaCopy) : schemaCopy;
+  const transformedSchema = useRpx
+    ? transformSchemaRpx(schemaCopy)
+    : schemaCopy;
 
-  // 自动解析数据中的图片路径（相对路径 → 完整 URL）
-  const resolvedData = resolveDataImages(data);
-  let preloadedData = resolvedData;
+  let preloadedData = data;
 
   // #ifdef APP-PLUS
   preloadedData = await preloadSchemaImages(transformedSchema, resolvedData);

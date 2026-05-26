@@ -134,7 +134,7 @@ computed: {
 
 ### renderPoster(options)
 
-渲染海报，自动处理路径解析、rpx 转换和平台差异。
+渲染海报，自动处理rpx 转换和平台差异。
 
 ```typescript
 function renderPoster(options: RenderPosterOptions): Promise<PosterEngine>;
@@ -487,10 +487,6 @@ Canvas 内部尺寸小于元素坐标范围。确保 `canvas.width/height` 不�
 ### 文字大小与预期不符
 
 `fontSize` 单位为 rpx，确保 `useRpx: true`（默认值）。
-
-### 图片加载失败
-
-数据中的图片路径字段名需以 `Image`/`Img`/`Url`/`Src`/`Photo`/`Pic` 结尾，或完整匹配 `background`/`qrcode`/`cover`/`avatar`，引擎才会自动解析路径。
 
 ---
 
