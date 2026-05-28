@@ -39,7 +39,8 @@ function binarySearchSplit(ctx, text, maxWidth) {
 }
 
 function binarySearchTruncate(ctx, text, maxWidth, suffix = "...") {
-  if (ctx.measureText(text).width + ctx.measureText(suffix).width <= maxWidth) return text;
+  if (ctx.measureText(text).width + ctx.measureText(suffix).width <= maxWidth)
+    return text;
   const suffixWidth = ctx.measureText(suffix).width;
   const targetWidth = maxWidth - suffixWidth;
   if (targetWidth <= 0) return "";
@@ -73,7 +74,14 @@ function parseBorderRadius(r) {
 }
 
 function roundRectPath(ctx, x, y, w, h, radius) {
-  const [lt, rt, rb, lb] = parseBorderRadius(radius);
+  let [lt, rt, rb, lb] = parseBorderRadius(radius);
+  const maxRadius = Math.min(w / 2, h / 2);
+
+  lt = Math.min(lt, maxRadius);
+  rt = Math.min(rt, maxRadius);
+  rb = Math.min(rb, maxRadius);
+  lb = Math.min(lb, maxRadius);
+
   ctx.beginPath();
   ctx.moveTo(x + lt, y);
   ctx.lineTo(x + w - rt, y);
@@ -625,13 +633,16 @@ export class PosterEngine {
     if (lines > 0 && allLines.length > lines) {
       renderLines = allLines.slice(0, lines);
       const lastLine = renderLines[renderLines.length - 1];
-      renderLines[renderLines.length - 1] = binarySearchTruncate(ctx, lastLine, textWidth) + "...";
+      renderLines[renderLines.length - 1] =
+        binarySearchTruncate(ctx, lastLine, textWidth) + "...";
     }
 
     if (ellipsis && textWidth) {
       const singleLine = allLines.join("");
       if (ctx.measureText(singleLine).width > textWidth) {
-        renderLines = [binarySearchTruncate(ctx, singleLine, textWidth) + "..."];
+        renderLines = [
+          binarySearchTruncate(ctx, singleLine, textWidth) + "...",
+        ];
       } else {
         renderLines = [singleLine];
       }

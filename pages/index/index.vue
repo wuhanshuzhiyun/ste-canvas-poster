@@ -146,25 +146,25 @@ const testCases: TestCase[] = [
 			width: canvasWidth,
 			height: canvasHeight,
 			views: [
-				{ type: 'image', src: '{{coverImage}}', css: { left: 40, top: 40, width: 630, height: 380, objectFit: 'cover', borderRadius: 24 } },
-				{ type: 'image', src: '{{avatarImage}}', css: { left: 40, top: 480, width: 200, height: 200, objectFit: 'cover', borderRadius: 100 } },
-				{ type: 'text', text: '{{userName}}', css: { left: 280, top: 520, fontSize: 48, color: '#2C3E50', fontWeight: 'bold' } },
-				{ type: 'text', text: '{{userDesc}}', css: { left: 280, top: 600, fontSize: 36, color: '#7F8C8D' } },
+				{ type: 'image', src: '{{coverImage}}', css: { left: 40, top: 40, width: 630, height: 300, objectFit: 'fill', borderRadius: 24 } },
+				{ type: 'image', src: '{{coverImage}}', css: { left: 40, top: 360, width: 630, height: 300, objectFit: 'cover', borderRadius: 24 } },
+				{ type: 'image', src: '{{coverImage}}', css: { left: 40, top: 680, width: 630, height: 300, objectFit: 'contain', borderRadius: 24 } },
 				{
 					type: 'view',
-					css: { left: 40, top: 740, width: 630, height: 160, backgroundColor: '#F8F9FA', borderRadius: 16 },
+					css: { left: 40, top: 1000, width: 630, height: 180, backgroundColor: '#f5f5f5', borderRadius: 20 },
 					views: [
-						{ type: 'text', text: '哈哈哈哈', css: { top: 40, fontSize: 32, color: '#95A5A6', textAlign: 'center' } },
-						{ type: 'text', text: '测试', css: { top: 80, fontSize: 32, color: '#000', textAlign: 'center' } }
+						{ type: 'image', src: '{{avatarImage}}', css: { left: 20, top: 20, width: 140, height: 140, objectFit: 'cover', borderRadius: 70 } },
+						{ type: 'text', text: '{{userName}}', css: { left: 180, top: 40, fontSize: 48, color: '#2C3E50', fontWeight: 'bold' } },
+						{ type: 'text', text: '{{userDesc}}', css: { left: 180, top: 100, width: 430, fontSize: 36, color: '#7F8C8D', ellipsis: true } }
 					]
 				}
 			]
 		},
 		data: {
-			coverImage: 'https://picsum.photos/600/400',
+			coverImage: 'https://picsum.photos/600/600',
 			avatarImage: 'https://picsum.photos/200/200',
-			userName: '李四',
-			userDesc: '资深设计师 · 5年经验'
+			userName: '王某人',
+			userDesc: '究极软件开发工程师 · 8000年经验'
 		}
 	},
 	{

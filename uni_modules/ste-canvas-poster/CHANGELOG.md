@@ -1,3 +1,7 @@
+## 1.0.2（2026-05-27）
+
+1.0.2
+
 # Changelog
 
 All notable changes to this project will be documented in this file.
@@ -30,3 +34,10 @@ All notable changes to this project will be documented in this file.
 ### BUG修复
 
 - 修复APP图片加载BUG
+
+## 1.1.0 (2026-05-28)
+
+### BUG修复
+
+- 优化圆角绘制逻辑，避免超出边界
+
