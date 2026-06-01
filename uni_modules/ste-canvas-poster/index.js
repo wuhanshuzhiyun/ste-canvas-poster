@@ -1,4 +1,4 @@
-export { renderPoster, getCanvasNode, rpx2px, px2rpx } from './src/posterAdapter';
-export { measureText } from './src/measureText';
-export { loadImage } from './src/posterEngine';
-export { PosterEngine } from './src/posterEngine';
+export { renderPoster, getCanvasNode } from "./src/posterAdapter";
+export { measureText, rpx2px, px2rpx, getWindowWidth, viewPrice } from "./src/tools";
+export { loadImage } from "./src/posterEngine";
+export { PosterEngine } from "./src/posterEngine";

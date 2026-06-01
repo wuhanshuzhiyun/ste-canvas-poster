@@ -1,10 +1,47 @@
-## 1.0.2（2026-05-27）
-
-1.0.2
-
 # Changelog
 
 All notable changes to this project will be documented in this file.
+
+## 1.2.0 (2026-05-28)
+
+### 新增
+
+- viewPrice 支持价格区间（prices 传数组），如 `prices: [1500, 2900]` 渲染为 ￥15.00~29.00
+- Flex 布局支持 `alignItems: 'baseline'`，不同字号文本按基线对齐
+- text 元素支持自动高度（省略 height 时引擎自动根据内容计算）
+- 新增 half-leading（半行距），字形在行高盒子内垂直居中
+
+### 修复
+
+- 修复纯数字字符串文本（如 "000"）被 rpx 转换误判为尺寸值导致内容丢失
+- 修复 text 无 width 时使用 parentWidth 导致宽度过大、浮点精度拆行的问题
+- 修复 Flex 布局中子元素 height 未回填导致对齐失效的问题
+- 修复 viewPrice 加粗属性拼写错误（blod → bold）和不支持的 bold 属性（改为 fontWeight）
+
+### 优化
+
+- 合并 measureText.js 到 tools.js，精简文件结构
+- _splitTextLines 抽取为独立方法，消除 _drawText 中的重复代码
+- NON_DIMENSION_KEYS 扩充，新增 text/src/color/fontWeight 等非尺寸属性排除
+- package.json 适配 UniApp 官方插件市场完整格式（dcloudext、uni_modules.platforms）
+
+## 1.1.0 (2026-05-28)
+
+### 修复
+
+- 优化圆角绘制逻辑，避免超出边界
+
+## 1.0.2 (2026-05-26)
+
+### 修复
+
+- 修复 APP 图片加载 BUG
+
+## 1.0.1 (2026-05-26)
+
+### 移除
+
+- 移除原项目中对 URL 解析的依赖
 
 ## 1.0.0 (2026-05-26)
 
@@ -22,22 +59,3 @@ All notable changes to this project will be documented in this file.
 - 图片 objectFit（fill / cover / contain）
 - 内置二维码生成，无需额外依赖
 - 完整 TypeScript 类型声明
-
-## 1.0.1 (2026-05-26)
-
-### 移除遗留代码
-
-- 移除原项目中对URL解析的依赖
-
-## 1.0.2 (2026-05-26)
-
-### BUG修复
-
-- 修复APP图片加载BUG
-
-## 1.1.0 (2026-05-28)
-
-### BUG修复
-
-- 优化圆角绘制逻辑，避免超出边界
-

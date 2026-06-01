@@ -1,4 +1,4 @@
-// ste-canvas-poster 类型声明 v0.0.1
+// ste-canvas-poster 类型声明 v1.2.0
 
 // ─────────────────────────────────────────────
 // CSS 属性类型
@@ -11,22 +11,22 @@ export type PaddingValue = number | [number, number] | [number, number, number, 
 export type BorderRadiusValue = number | [number, number, number, number];
 
 /** 字重：关键字或数字 */
-export type FontWeight = 'normal' | 'bold' | '400' | '700' | number;
+export type FontWeight = "normal" | "bold" | "400" | "700" | number;
 
-/** 对齐方式 */
-export type TextAlign = 'left' | 'center' | 'right';
+/** 文本水平对齐 */
+export type TextAlign = "left" | "center" | "right";
 
-/** Flex 方向 */
-export type FlexDirection = 'row' | 'column';
+/**Flex 方向 */
+export type FlexDirection = "row" | "column";
 
 /** Flex 交叉轴对齐 */
-export type AlignItems = 'flex-start' | 'center' | 'flex-end';
+export type AlignItems = "flex-start" | "center" | "flex-end" | "baseline";
 
 /** Flex 主轴对齐 */
-export type JustifyContent = 'flex-start' | 'center' | 'space-between';
+export type JustifyContent = "flex-start" | "center" | "space-between";
 
 /** objectFit 模式 */
-export type ObjectFit = 'fill' | 'cover' | 'contain';
+export type ObjectFit = "fill" | "cover" | "contain";
 
 /** 背景色或渐变字符串 */
 export type BackgroundValue = string;
@@ -39,14 +39,14 @@ export type TemplateString = string;
 // ─────────────────────────────────────────────
 
 export interface CommonCss {
-	left?: number;
-	top?: number;
-	right?: number;
-	bottom?: number;
-	width?: number;
-	height?: number;
-	opacity?: number;
-	borderRadius?: BorderRadiusValue;
+  left?: number;
+  top?: number;
+  right?: number;
+  bottom?: number;
+  width?: number;
+  height?: number;
+  opacity?: number;
+  borderRadius?: BorderRadiusValue;
 }
 
 // ─────────────────────────────────────────────
@@ -54,41 +54,41 @@ export interface CommonCss {
 // ─────────────────────────────────────────────
 
 export interface ViewCss extends CommonCss {
-	background?: BackgroundValue;
-	backgroundColor?: BackgroundValue;
-	borderWidth?: number;
-	borderColor?: string;
-	display?: 'flex';
-	flexDirection?: FlexDirection;
-	alignItems?: AlignItems;
-	justifyContent?: JustifyContent;
-	padding?: PaddingValue;
+  background?: BackgroundValue;
+  backgroundColor?: BackgroundValue;
+  borderWidth?: number;
+  borderColor?: string;
+  display?: "flex";
+  flexDirection?: FlexDirection;
+  alignItems?: AlignItems;
+  justifyContent?: JustifyContent;
+  padding?: PaddingValue;
 }
 
 export interface ImageCss extends CommonCss {
-	objectFit?: ObjectFit;
+  objectFit?: ObjectFit;
 }
 
 export interface TextCss extends CommonCss {
-	fontSize?: number;
-	fontWeight?: FontWeight;
-	fontFamily?: string;
-	color?: string;
-	textAlign?: TextAlign;
-	lineHeight?: number;
-	maxWidth?: number;
-	ellipsis?: boolean;
-	lines?: number;
-	textDecoration?: 'line-through' | 'none';
-	background?: BackgroundValue;
-	backgroundColor?: BackgroundValue;
-	padding?: PaddingValue;
+  fontSize?: number;
+  fontWeight?: FontWeight;
+  fontFamily?: string;
+  color?: string;
+  textAlign?: TextAlign;
+  lineHeight?: number;
+  maxWidth?: number;
+  ellipsis?: boolean;
+  lines?: number;
+  textDecoration?: "line-through" | "none";
+  background?: BackgroundValue;
+  backgroundColor?: BackgroundValue;
+  padding?: PaddingValue;
 }
 
 export interface QrcodeCss extends CommonCss {
-	color?: string;
-	background?: BackgroundValue;
-	backgroundColor?: BackgroundValue;
+  color?: string;
+  background?: BackgroundValue;
+  backgroundColor?: BackgroundValue;
 }
 
 // ─────────────────────────────────────────────
@@ -96,10 +96,10 @@ export interface QrcodeCss extends CommonCss {
 // ─────────────────────────────────────────────
 
 export interface FlexChildCss {
-	marginLeft?: number;
-	marginRight?: number;
-	marginTop?: number;
-	marginBottom?: number;
+  marginLeft?: number;
+  marginRight?: number;
+  marginTop?: number;
+  marginBottom?: number;
 }
 
 // ─────────────────────────────────────────────
@@ -107,28 +107,28 @@ export interface FlexChildCss {
 // ─────────────────────────────────────────────
 
 export interface ViewNode {
-	type: 'view';
-	css?: ViewCss & FlexChildCss;
-	views?: SchemaNode[];
+  type: "view";
+  css?: ViewCss & FlexChildCss;
+  views?: SchemaNode[];
 }
 
 export interface ImageNode {
-	type: 'image';
-	src: string | TemplateString;
-	css?: ImageCss & FlexChildCss;
+  type: "image";
+  src: string | TemplateString;
+  css?: ImageCss & FlexChildCss;
 }
 
 export interface TextNode {
-	type: 'text';
-	text: string | TemplateString;
-	css?: TextCss & FlexChildCss;
+  type: "text";
+  text: string | number | TemplateString;
+  css?: TextCss & FlexChildCss;
 }
 
 export interface QrcodeNode {
-	type: 'qrcode';
-	text?: string | TemplateString;
-	src?: string | TemplateString;
-	css?: QrcodeCss & FlexChildCss;
+  type: "qrcode";
+  text?: string | TemplateString;
+  src?: string | TemplateString;
+  css?: QrcodeCss & FlexChildCss;
 }
 
 export type SchemaNode = ViewNode | ImageNode | TextNode | QrcodeNode;
@@ -138,13 +138,13 @@ export type SchemaNode = ViewNode | ImageNode | TextNode | QrcodeNode;
 // ─────────────────────────────────────────────
 
 export interface PosterSchema {
-	width: number;
-	height: number;
-	borderRadius?: number;
-	background?: BackgroundValue;
-	backgroundColor?: BackgroundValue;
-	backgroundImage?: string | TemplateString;
-	views: SchemaNode[];
+  width: number;
+  height: number;
+  borderRadius?: number;
+  background?: BackgroundValue;
+  backgroundColor?: BackgroundValue;
+  backgroundImage?: string | TemplateString;
+  views: SchemaNode[];
 }
 
 // ─────────────────────────────────────────────
@@ -158,12 +158,12 @@ export type TemplateData = Record<string, string | number | boolean | undefined 
 // ─────────────────────────────────────────────
 
 export interface RenderPosterOptions {
-	schema: PosterSchema;
-	data?: TemplateData;
-	selector: string;
-	vm: Record<string, any>;
-	dpr?: number;
-	useRpx?: boolean;
+  schema: PosterSchema;
+  data?: TemplateData;
+  selector: string;
+  vm: Record<string, any>;
+  dpr?: number;
+  useRpx?: boolean;
 }
 
 // ─────────────────────────────────────────────
@@ -171,8 +171,25 @@ export interface RenderPosterOptions {
 // ─────────────────────────────────────────────
 
 export interface ToTempFilePathOptions {
-	fileType?: 'png' | 'jpg';
-	quality?: number;
+  fileType?: "png" | "jpg";
+  quality?: number;
+}
+
+// ─────────────────────────────────────────────
+// viewPrice 选项
+// ─────────────────────────────────────────────
+
+export interface ViewPriceOptions {
+  prices?: number | string | (number | string)[];
+  fontSize?: number;
+  prefix?: string;
+  suffix?: string;
+  color?: string;
+  top?: number;
+  left?: number;
+  priceBold?: boolean;
+  prefixBold?: boolean;
+  suffixBold?: boolean;
 }
 
 // ─────────────────────────────────────────────
@@ -180,19 +197,19 @@ export interface ToTempFilePathOptions {
 // ─────────────────────────────────────────────
 
 export declare class PosterEngine {
-	canvas: any;
-	ctx: CanvasRenderingContext2D;
-	schema: PosterSchema;
-	data: TemplateData;
-	dpr: number;
+  canvas: any;
+  ctx: CanvasRenderingContext2D;
+  schema: PosterSchema;
+  data: TemplateData;
+  dpr: number;
 
-	constructor(options: { canvas: any; schema: PosterSchema; data?: TemplateData; dpr?: number });
+  constructor(options: { canvas: any; schema: PosterSchema; data?: TemplateData; dpr?: number });
 
-	render(): Promise<void>;
+  render(): Promise<void>;
 
-	toTempFilePath(options?: ToTempFilePathOptions): Promise<string>;
+  toTempFilePath(options?: ToTempFilePathOptions): Promise<string>;
 
-	saveToAlbum(): Promise<string>;
+  saveToAlbum(): Promise<string>;
 
-	destroy(): void;
+  destroy(): void;
 }

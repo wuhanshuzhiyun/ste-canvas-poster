@@ -1,6 +1,6 @@
 /**
  * PosterEngine - 统一海报绘制引擎
- * 版本：v0.0.1
+ * 版本：v1.2.0
  * 支持平台：微信小程序 / APP
  * 说明：基于 Canvas 2D API，通过声明式 JSON Schema 驱动绘制，双端一致。
  */
@@ -17,10 +17,9 @@ const MAX_IMAGE_CACHE_SIZE = 50;
 // ─────────────────────────────────────────────
 
 const LINEAR_GRADIENT_RE = /linear-gradient\(\s*(\d+)deg\s*,\s*(.+)\)/i;
-const TEMPLATE_RE = /\{\{(\w+)\}\}/g;
 
 function normalizeImageSrc(src) {
-  return src || "";
+  return src ?? "";
 }
 
 function binarySearchSplit(ctx, text, maxWidth) {
@@ -39,8 +38,7 @@ function binarySearchSplit(ctx, text, maxWidth) {
 }
 
 function binarySearchTruncate(ctx, text, maxWidth, suffix = "...") {
-  if (ctx.measureText(text).width + ctx.measureText(suffix).width <= maxWidth)
-    return text;
+  if (ctx.measureText(text).width + ctx.measureText(suffix).width <= maxWidth) return text;
   const suffixWidth = ctx.measureText(suffix).width;
   const targetWidth = maxWidth - suffixWidth;
   if (targetWidth <= 0) return "";
@@ -59,8 +57,7 @@ function binarySearchTruncate(ctx, text, maxWidth, suffix = "...") {
 
 function parsePadding(padding) {
   if (padding == null) return { top: 0, right: 0, bottom: 0, left: 0 };
-  if (typeof padding === "number")
-    return { top: padding, right: padding, bottom: padding, left: padding };
+  if (typeof padding === "number") return { top: padding, right: padding, bottom: padding, left: padding };
   const [t = 0, r = 0, b = 0, l = 0] = padding;
   if (padding.length === 2) return { top: t, right: r, bottom: t, left: r };
   return { top: t, right: r, bottom: b, left: l };
@@ -103,15 +100,27 @@ function parseLinearGradient(ctx, gradientStr, x, y, w, h) {
   const rad = ((deg - 90) * Math.PI) / 180;
   const cx = x + w / 2;
   const cy = y + h / 2;
-  const halfLen =
-    (Math.abs(Math.cos(rad)) * w + Math.abs(Math.sin(rad)) * h) / 2;
+  const halfLen = (Math.abs(Math.cos(rad)) * w + Math.abs(Math.sin(rad)) * h) / 2;
   const x0 = cx - Math.cos(rad) * halfLen;
   const y0 = cy - Math.sin(rad) * halfLen;
   const x1 = cx + Math.cos(rad) * halfLen;
   const y1 = cy + Math.sin(rad) * halfLen;
 
   const gradient = ctx.createLinearGradient(x0, y0, x1, y1);
-  const stops = m[2].split(",").map((s) => s.trim());
+  const stopsStr = m[2];
+  const stops = [];
+  let depth = 0;
+  let segStart = 0;
+  for (let i = 0; i <= stopsStr.length; i++) {
+    const ch = stopsStr[i];
+    if (ch === "(") depth++;
+    else if (ch === ")") depth--;
+    else if ((ch === "," || i === stopsStr.length) && depth === 0) {
+      const seg = stopsStr.substring(segStart, i).trim();
+      if (seg) stops.push(seg);
+      segStart = i + 1;
+    }
+  }
   stops.forEach((stop) => {
     const parts = stop.split(/\s+/);
     const color = parts[0];
@@ -147,8 +156,8 @@ export function loadImage(canvas, src) {
       if (/^data:image/i.test(normalizedSrc)) {
         const img = {
           src: normalizedSrc,
-          width: 200,
-          height: 200,
+          width: css.width || 200,
+          height: css.height || 200,
           path: normalizedSrc,
         };
         resolve(img);
@@ -235,13 +244,7 @@ export class PosterEngine {
     this._checkDestroyed();
     this._tplCache.clear();
 
-    const {
-      width,
-      height,
-      backgroundImage,
-      borderRadius,
-      views = [],
-    } = this.schema;
+    const { width, height, backgroundImage, borderRadius, views = [] } = this.schema;
     const background = this.schema.background || this.schema.backgroundColor;
     const dpr = this.dpr;
 
@@ -393,13 +396,7 @@ export class PosterEngine {
   // 私有方法：绘制节点
   // ─────────────────────────────────────────────
 
-  async _drawNode(
-    node,
-    offsetX = 0,
-    offsetY = 0,
-    parentWidth = null,
-    parentHeight = null,
-  ) {
+  async _drawNode(node, offsetX = 0, offsetY = 0, parentWidth = null, parentHeight = null) {
     const { type } = node;
     const css = node.css || {};
 
@@ -417,21 +414,29 @@ export class PosterEngine {
     const refWidth = parentWidth != null ? parentWidth : this._logicalWidth;
     const refHeight = parentHeight != null ? parentHeight : this._logicalHeight;
 
+    const savedLeft = css.left;
+    const savedTop = css.top;
+    const savedWidth = css.width;
+    const savedHeight = css.height;
+
+    if (type === "text" && css.height == null) {
+      css.height = this._resolveTextHeight(node, resolvedWidth);
+    }
+
+    const resolvedHeight = css.height ?? 0;
+
     let x, y;
     if (css.right != null && css.right >= 0) {
       x = offsetX + refWidth - css.right - resolvedWidth;
     } else {
-      x = (css.left || 0) + offsetX;
+      x = (css.left ?? 0) + offsetX;
     }
     if (css.bottom != null && css.bottom >= 0) {
-      y = offsetY + refHeight - css.bottom - (css.height || 0);
+      y = offsetY + refHeight - css.bottom - resolvedHeight;
     } else {
-      y = (css.top || 0) + offsetY;
+      y = (css.top ?? 0) + offsetY;
     }
 
-    const savedLeft = css.left;
-    const savedTop = css.top;
-    const savedWidth = css.width;
     css.left = x;
     css.top = y;
     css.width = resolvedWidth;
@@ -445,7 +450,7 @@ export class PosterEngine {
 
     const br = css.borderRadius;
     if (br) {
-      roundRectPath(ctx, x, y, resolvedWidth || 0, css.height || 0, br);
+      roundRectPath(ctx, x, y, resolvedWidth || 0, resolvedHeight, br);
       ctx.clip();
     }
 
@@ -457,7 +462,7 @@ export class PosterEngine {
         await this._drawImage(node);
         break;
       case "text":
-        this._drawText(node);
+        this._drawText(node, savedWidth);
         break;
       case "qrcode":
         await this._drawQRCode(node);
@@ -470,6 +475,7 @@ export class PosterEngine {
     css.left = savedLeft;
     css.top = savedTop;
     css.width = savedWidth;
+    css.height = savedHeight;
   }
 
   // ─────────────────────────────────────────────
@@ -489,9 +495,7 @@ export class PosterEngine {
     let fillStyle = null;
     if (hasBg) {
       if (background.includes("linear-gradient")) {
-        fillStyle =
-          parseLinearGradient(ctx, background, x, y, w || 0, h || 0) ||
-          background;
+        fillStyle = parseLinearGradient(ctx, background, x, y, w || 0, h || 0) || background;
       } else {
         fillStyle = background;
       }
@@ -524,7 +528,7 @@ export class PosterEngine {
   async _drawImage(node) {
     const { src, css } = node;
     const resolvedSrc = this._resolveTemplate(src);
-    if (!resolvedSrc) return;
+    if (!resolvedSrc || resolvedSrc === "") return;
 
     const { left: x, top: y, width: w, height: h } = css;
     const objectFit = css.objectFit || "fill";
@@ -535,14 +539,7 @@ export class PosterEngine {
       const imgSrc = this._getImageSrc(img);
 
       if (objectFit === "cover") {
-        const { sx, sy, sw, sh, dx, dy, dw, dh } = calcCover(
-          img.width,
-          img.height,
-          x,
-          y,
-          w,
-          h,
-        );
+        const { sx, sy, sw, sh, dx, dy, dw, dh } = calcCover(img.width, img.height, x, y, w, h);
         ctx.drawImage(imgSrc, sx, sy, sw, sh, dx, dy, dw, dh);
       } else if (objectFit === "contain") {
         const scale = Math.min(w / img.width, h / img.height);
@@ -559,43 +556,21 @@ export class PosterEngine {
     }
   }
 
-  _drawText(node) {
+  _splitTextLines(node, availableWidth, userWidth) {
     const { text, css } = node;
-    const resolvedText = this._resolveTemplate(String(text || ""));
+    const resolvedText = this._resolveTemplate(String(text ?? ""));
 
     const ctx = this.ctx;
     const fontSize = css.fontSize || 14;
     const fontWeight = css.fontWeight || "normal";
     const fontFamily = css.fontFamily || "sans-serif";
-    const color = css.color || "#000000";
-    const textAlign = css.textAlign || "left";
-    const lineHeight = css.lineHeight || 1.4;
     const lines = css.lines || 0;
     const ellipsis = css.ellipsis || false;
-    const textDecoration = css.textDecoration || "";
-    const textBgColor = css.background || css.backgroundColor;
 
-    ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
-    ctx.textBaseline = "top";
+    this._setFont(css);
 
-    const { left: x, top: y, width: elemWidth, maxWidth: elemMaxWidth } = css;
-    const textWidth = elemWidth || elemMaxWidth || this._logicalWidth;
-
-    let drawX = x;
-    if (textAlign === "center") {
-      drawX = x + (textWidth || 0) / 2;
-      ctx.textAlign = "center";
-    } else if (textAlign === "right") {
-      drawX = x + (textWidth || 0);
-      ctx.textAlign = "right";
-    } else {
-      ctx.textAlign = "left";
-    }
-
-    const lineHeightPx =
-      typeof lineHeight === "number" && lineHeight > 10
-        ? lineHeight
-        : fontSize * lineHeight;
+    const elemMaxWidth = css.maxWidth;
+    const textWidth = userWidth || elemMaxWidth || availableWidth || 0;
 
     const textLines = resolvedText.split("\n");
     const allLines = [];
@@ -613,8 +588,11 @@ export class PosterEngine {
           const remaining = segment.substring(i);
           const fitLen = binarySearchSplit(ctx, remaining, textWidth);
           if (fitLen === 0) {
-            if (currentLine) allLines.push(currentLine);
-            currentLine = segment[i];
+            if (currentLine) {
+              allLines.push(currentLine);
+              currentLine = "";
+            }
+            allLines.push(segment[i]);
             i++;
           } else if (fitLen >= remaining.length) {
             currentLine += remaining;
@@ -633,20 +611,65 @@ export class PosterEngine {
     if (lines > 0 && allLines.length > lines) {
       renderLines = allLines.slice(0, lines);
       const lastLine = renderLines[renderLines.length - 1];
-      renderLines[renderLines.length - 1] =
-        binarySearchTruncate(ctx, lastLine, textWidth) + "...";
+      renderLines[renderLines.length - 1] = binarySearchTruncate(ctx, lastLine, textWidth) + "...";
     }
 
     if (ellipsis && textWidth) {
       const singleLine = allLines.join("");
       if (ctx.measureText(singleLine).width > textWidth) {
-        renderLines = [
-          binarySearchTruncate(ctx, singleLine, textWidth) + "...",
-        ];
+        renderLines = [binarySearchTruncate(ctx, singleLine, textWidth) + "..."];
       } else {
         renderLines = [singleLine];
       }
     }
+
+    return { renderLines, textWidth, resolvedText };
+  }
+
+  _resolveTextHeight(node, availableWidth) {
+    const css = node.css || {};
+    if (css.height != null) return css.height;
+
+    const fontSize = css.fontSize || 14;
+    const lineHeight = css.lineHeight || 1.4;
+    const lineHeightPx = typeof lineHeight === "number" && lineHeight > 10 ? lineHeight : fontSize * lineHeight;
+
+    const { renderLines } = this._splitTextLines(node, availableWidth, css.width);
+    return renderLines.length * lineHeightPx;
+  }
+
+  _drawText(node, userWidth) {
+    const { css } = node;
+    const ctx = this.ctx;
+    const fontSize = css.fontSize || 14;
+    const fontWeight = css.fontWeight || "normal";
+    const fontFamily = css.fontFamily || "sans-serif";
+    const color = css.color || "#000000";
+    const textAlign = css.textAlign || "left";
+    const lineHeight = css.lineHeight || 1.4;
+    const textDecoration = css.textDecoration || "";
+    const textBgColor = css.background || css.backgroundColor;
+
+    const { left: x, top: y, width: elemWidth, maxWidth: elemMaxWidth } = css;
+    const textWidth = userWidth || elemWidth || elemMaxWidth || this._logicalWidth;
+
+    this._setFont(css);
+    ctx.textBaseline = "alphabetic";
+
+    let drawX = x;
+    if (textAlign === "center") {
+      drawX = x + (textWidth || 0) / 2;
+      ctx.textAlign = "center";
+    } else if (textAlign === "right") {
+      drawX = x + (textWidth || 0);
+      ctx.textAlign = "right";
+    } else {
+      ctx.textAlign = "left";
+    }
+
+    const lineHeightPx = typeof lineHeight === "number" && lineHeight > 10 ? lineHeight : fontSize * lineHeight;
+
+    const { renderLines } = this._splitTextLines(node, this._logicalWidth, userWidth);
 
     if (textBgColor) {
       const pd = parsePadding(css.padding);
@@ -656,29 +679,19 @@ export class PosterEngine {
       const bgW = textWidth || 0;
       const bgH = renderLines.length * lineHeightPx;
       if (css.borderRadius) {
-        roundRectPath(
-          ctx,
-          bgX - pd.left,
-          bgY - pd.top,
-          bgW + pd.left + pd.right,
-          bgH + pd.top + pd.bottom,
-          css.borderRadius,
-        );
+        roundRectPath(ctx, bgX - pd.left, bgY - pd.top, bgW + pd.left + pd.right, bgH + pd.top + pd.bottom, css.borderRadius);
         ctx.fill();
       } else {
-        ctx.fillRect(
-          bgX - pd.left,
-          bgY - pd.top,
-          bgW + pd.left + pd.right,
-          bgH + pd.top + pd.bottom,
-        );
+        ctx.fillRect(bgX - pd.left, bgY - pd.top, bgW + pd.left + pd.right, bgH + pd.top + pd.bottom);
       }
     }
 
+    const halfLeading = (lineHeightPx - fontSize) / 2;
+    const fontAscent = this._getFontAscent(css);
     ctx.fillStyle = color;
     renderLines.forEach((line, i) => {
-      const lineY = y + i * lineHeightPx;
-      ctx.fillText(line, drawX, lineY);
+      const baselineY = y + halfLeading + fontAscent + i * lineHeightPx;
+      ctx.fillText(line, drawX, baselineY);
 
       if (textDecoration === "line-through") {
         const lineWidth = ctx.measureText(line).width;
@@ -688,7 +701,7 @@ export class PosterEngine {
         } else if (textAlign === "right") {
           lineStartX = drawX - lineWidth;
         }
-        const midY = lineY + fontSize / 2;
+        const midY = baselineY - fontAscent / 2;
         ctx.beginPath();
         ctx.moveTo(lineStartX, midY);
         ctx.lineTo(lineStartX + lineWidth, midY);
@@ -717,6 +730,45 @@ export class PosterEngine {
     }
   }
 
+  _setFont(css) {
+    const fontSize = css.fontSize || 14;
+    const fontWeight = css.fontWeight || "normal";
+    const fontFamily = css.fontFamily || "sans-serif";
+    this.ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
+  }
+
+  _getFontAscent(css) {
+    const fontSize = css.fontSize || 14;
+    this._setFont(css);
+    const ctx = this.ctx;
+    try {
+      const metrics = ctx.measureText("M");
+      if (metrics.fontBoundingBoxAscent) return metrics.fontBoundingBoxAscent;
+    } catch (e) {}
+    try {
+      const savedBaseline = ctx.textBaseline;
+      ctx.textBaseline = "alphabetic";
+      const metrics = ctx.measureText("M\u4E2D");
+      if (metrics.actualBoundingBoxAscent) {
+        ctx.textBaseline = savedBaseline;
+        return metrics.actualBoundingBoxAscent;
+      }
+      ctx.textBaseline = savedBaseline;
+    } catch (e) {}
+    return fontSize * 0.9;
+  }
+
+  _getTextBaselineOffset(node) {
+    if (node.type !== "text") return 0;
+    const css = node.css || {};
+    const fontSize = css.fontSize || 14;
+    const lineHeight = css.lineHeight || 1.4;
+    const lineHeightPx = typeof lineHeight === "number" && lineHeight > 10 ? lineHeight : fontSize * lineHeight;
+    const halfLeading = (lineHeightPx - fontSize) / 2;
+    const ascent = this._getFontAscent(css);
+    return halfLeading + ascent;
+  }
+
   async _drawFlexChildren(node) {
     const { css, views: children = [] } = node;
     const { left: x, top: y, width: w, height: h } = css;
@@ -732,25 +784,31 @@ export class PosterEngine {
 
     const isRow = flexDirection === "row";
 
-    let totalFixed = 0;
-    children.forEach((child) => {
+    const childSizes = children.map((child) => {
       const childCss = child.css || {};
-      const ml = childCss.marginLeft || 0;
-      const mr = childCss.marginRight || 0;
-      const mt = childCss.marginTop || 0;
-      const mb = childCss.marginBottom || 0;
-      const childWidth = this._resolveChildWidth(child, innerW);
+      return {
+        ml: childCss.marginLeft || 0,
+        mr: childCss.marginRight || 0,
+        mt: childCss.marginTop || 0,
+        mb: childCss.marginBottom || 0,
+        cw: this._resolveChildWidth(child, innerW),
+        ch: this._resolveChildHeight(child, innerW, innerH),
+        baselineOffset: this._getTextBaselineOffset(child),
+      };
+    });
+
+    let totalFixed = 0;
+    childSizes.forEach((s) => {
       if (isRow) {
-        totalFixed += childWidth + ml + mr;
+        totalFixed += s.cw + s.ml + s.mr;
       } else {
-        totalFixed += (childCss.height || 0) + mt + mb;
+        totalFixed += s.ch + s.mt + s.mb;
       }
     });
 
     const gap =
       justifyContent === "space-between" && children.length > 1
-        ? (isRow ? innerW - totalFixed : innerH - totalFixed) /
-          (children.length - 1)
+        ? (isRow ? innerW - totalFixed : innerH - totalFixed) / (children.length - 1)
         : justifyContent === "center"
           ? isRow
             ? (innerW - totalFixed) / 2
@@ -763,25 +821,32 @@ export class PosterEngine {
       cursor += gap;
     }
 
-    for (const child of children) {
+    const maxBaseline = childSizes.reduce((max, s) => Math.max(max, s.baselineOffset), 0);
+
+    for (let idx = 0; idx < children.length; idx++) {
+      const child = children[idx];
       const childCss = child.css || {};
-      const ml = childCss.marginLeft || 0;
-      const mr = childCss.marginRight || 0;
-      const mt = childCss.marginTop || 0;
-      const mb = childCss.marginBottom || 0;
-      const cw = this._resolveChildWidth(child, innerW);
-      const ch = childCss.height || 0;
+      const s = childSizes[idx];
+      const { ml, mr, mt, mb, cw, ch, baselineOffset } = s;
 
       let cx, cy;
 
       if (isRow) {
         cx = cursor + ml;
-        cy = this._calcAlignOffset(alignItems, innerY, innerH, ch, mt, mb);
+        if (alignItems === "baseline") {
+          cy = innerY + mt + (maxBaseline - baselineOffset);
+        } else {
+          cy = this._calcAlignOffset(alignItems, innerY, innerH, ch, mt, mb);
+        }
         cursor = cx + cw + mr;
         if (justifyContent === "space-between") cursor += gap;
       } else {
         cy = cursor + mt;
-        cx = this._calcAlignOffset(alignItems, innerX, innerW, cw, ml, mr);
+        if (alignItems === "baseline") {
+          cx = innerX + ml + (maxBaseline - (baselineOffset || cw / 2));
+        } else {
+          cx = this._calcAlignOffset(alignItems, innerX, innerW, cw, ml, mr);
+        }
         cursor = cy + ch + mb;
         if (justifyContent === "space-between") cursor += gap;
       }
@@ -789,13 +854,16 @@ export class PosterEngine {
       const savedLeft = childCss.left;
       const savedTop = childCss.top;
       const savedWidth = childCss.width;
+      const savedHeight = childCss.height;
       childCss.left = cx;
       childCss.top = cy;
       childCss.width = cw;
+      childCss.height = ch;
       await this._drawNode(child, 0, 0, cw, ch);
       childCss.left = savedLeft;
       childCss.top = savedTop;
       childCss.width = savedWidth;
+      childCss.height = savedHeight;
     }
   }
 
@@ -810,20 +878,26 @@ export class PosterEngine {
     return 0;
   }
 
+  _resolveChildHeight(child, availableWidth, availableHeight) {
+    const childCss = child.css || {};
+    if (childCss.height != null) {
+      return childCss.height;
+    }
+    if (child.type === "text") {
+      return this._resolveTextHeight(child, availableWidth);
+    }
+    return 0;
+  }
+
   _calcTextWidth(node, maxWidth = Infinity) {
     const { text, css } = node;
-    const resolvedText = this._resolveTemplate(String(text || ""));
-    const ctx = this.ctx;
-    const fontSize = css.fontSize || 14;
-    const fontWeight = css.fontWeight || "normal";
-    const fontFamily = css.fontFamily || "sans-serif";
-    const effectiveMaxWidth =
-      maxWidth != null && !isNaN(maxWidth) ? maxWidth : Infinity;
+    const resolvedText = this._resolveTemplate(String(text ?? ""));
+    const effectiveMaxWidth = maxWidth != null && !isNaN(maxWidth) ? maxWidth : Infinity;
     const textMaxWidth = css.maxWidth || effectiveMaxWidth;
 
-    ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
-    const textWidth = ctx.measureText(resolvedText).width;
-    return Math.min(textWidth, textMaxWidth);
+    this._setFont(css);
+    const textWidth = this.ctx.measureText(resolvedText).width;
+    return Math.min(Math.ceil(textWidth), textMaxWidth);
   }
 
   _calcAlignOffset(align, start, size, childSize, marginStart, marginEnd) {
@@ -838,9 +912,9 @@ export class PosterEngine {
   }
 
   async _drawQRCode(node) {
-    const qrText = node.text || node.src || "";
+    const qrText = node.text ?? node.src ?? "";
     const resolvedText = this._resolveTemplate(qrText);
-    if (!resolvedText) return;
+    if (resolvedText == null || resolvedText === "") return;
 
     const { css } = node;
     const { left: x, top: y, width: w, height: h } = css;
@@ -863,12 +937,7 @@ export class PosterEngine {
       for (let r = 0; r < moduleCount; r++) {
         for (let c = 0; c < moduleCount; c++) {
           if (matrix[r][c] === 1) {
-            ctx.fillRect(
-              x + (c + margin) * moduleSize,
-              y + (r + margin) * moduleSize,
-              moduleSize,
-              moduleSize,
-            );
+            ctx.fillRect(x + (c + margin) * moduleSize, y + (r + margin) * moduleSize, moduleSize, moduleSize);
           }
         }
       }
@@ -936,7 +1005,7 @@ export class PosterEngine {
     if (typeof str !== "string") return str;
     const cached = this._tplCache.get(str);
     if (cached !== undefined) return cached;
-    const result = str.replace(TEMPLATE_RE, (_, key) => {
+    const result = str.replace(/\{\{(\w+)\}\}/g, (_, key) => {
       const val = this.data[key];
       return val != null ? String(val) : `{{${key}}}`;
     });

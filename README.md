@@ -7,8 +7,10 @@
 - **Schema 驱动** — 通过 JSON 描述海报结构，数值直接使用设计稿 rpx
 - **双端一致** — 一套 Schema 同时适配微信小程序与 APP，无需条件编译
 - **模板变量** — Schema 中 `{{key}}` 自动替换为 data 数据
-- **Flex 布局** — view 容器支持 `display: 'flex'` 及子元素 margin
+- **Flex 布局** — view 容器支持 `display: 'flex'` 及子元素 margin、baseline 对齐
+- **自动高度** — text 元素可省略 height，引擎根据内容自动计算
 - **内置二维码** — qrcode 类型直接生成二维码，无需额外依赖
+- **快捷组件** — viewPrice 价格组合，大小字基线自动对齐
 - **TypeScript 支持** — 完整类型声明，开发时自动补全
 
 ## 安装
@@ -87,7 +89,6 @@ const data = {
 ```javascript
 import { renderPoster } from "ste-canvas-poster";
 
-// 渲染
 const engine = await renderPoster({
   schema,
   data,
@@ -95,10 +96,8 @@ const engine = await renderPoster({
   vm: this,
 });
 
-// 保存到相册
 await engine.saveToAlbum();
 
-// 或获取临时路径（用于分享）
 const tempPath = await engine.toTempFilePath();
 ```
 
@@ -110,12 +109,7 @@ const tempPath = await engine.toTempFilePath();
   <canvas id="myCanvas" type="2d" class="canvas" :style="canvasStyle" />
   <!-- #endif -->
   <!-- #ifdef APP-PLUS -->
-  <canvas
-    canvas-id="myCanvas"
-    id="myCanvas"
-    class="canvas"
-    :style="canvasStyle"
-  />
+  <canvas canvas-id="myCanvas" id="myCanvas" class="canvas" :style="canvasStyle" />
   <!-- #endif -->
 </template>
 ```
@@ -134,13 +128,11 @@ computed: {
 
 ### renderPoster(options)
 
-渲染海报，自动处理rpx 转换和平台差异。
+渲染海报，自动处理 rpx 转换和平台差异。
 
 ```typescript
 function renderPoster(options: RenderPosterOptions): Promise<PosterEngine>;
 ```
-
-**参数**：
 
 | 参数       | 类型                  | 必填 | 默认值   | 说明                                  |
 | ---------- | --------------------- | ---- | -------- | ------------------------------------- |
@@ -208,6 +200,14 @@ function rpx2px(rpx: number): number;
 function px2rpx(px: number): number;
 ```
 
+#### getWindowWidth()
+
+获取当前屏幕窗口宽度（px），首次调用时缓存结果。
+
+```typescript
+function getWindowWidth(): number;
+```
+
 #### getCanvasNode(selector, vm)
 
 获取 Canvas 节点（双端统一封装）。
@@ -231,6 +231,56 @@ function measureText(text: string, fontSize: number, bold?: boolean): number;
 | `bold`     | `boolean` | 否   | `false` | 是否加粗（加宽 6%） |
 
 **返回值**：文本宽度（rpx），向上取整
+
+#### loadImage(canvas, src)
+
+加载图片（双端统一封装）。
+
+```typescript
+function loadImage(canvas: any, src: string): Promise<any>;
+```
+
+**返回值**：包含 `width`、`height`、`path` 的图片对象
+
+### 快捷组件
+
+#### viewPrice(options?)
+
+生成价格组合 Schema，大小字基线自动对齐。
+
+```typescript
+function viewPrice(options?: ViewPriceOptions): SchemaNode;
+```
+
+| 参数         | 类型                              | 默认值      | 说明                                        |
+| ------------ | --------------------------------- | ----------- | ------------------------------------------- |
+| `prices`     | `number \| string \| Array`       | `0`         | 价格（分），如 1500 = 15.00元；数组表示区间 |
+| `fontSize`   | `number`                          | `40`        | 整数部分字号                                |
+| `prefix`     | `string`                          | `'￥'`      | 前缀文本                                    |
+| `suffix`     | `string`                          | `''`        | 后缀文本                                    |
+| `color`      | `string`                          | `'#FF283A'` | 文本颜色                                    |
+| `top`        | `number`                          | `0`         | y 坐标                                      |
+| `left`       | `number`                          | `0`         | x 坐标                                      |
+| `priceBold`  | `boolean`                         | `true`      | 价格是否加粗                                |
+| `prefixBold` | `boolean`                         | `true`      | 前缀是否加粗                                |
+| `suffixBold` | `boolean`                         | `false`     | 后缀是否加粗                                |
+
+**示例**：
+
+```javascript
+import { viewPrice } from "ste-canvas-poster";
+
+// 单价：15.00元起
+viewPrice({ prices: 1500, suffix: "起", fontSize: 40, left: 30, top: 350 });
+
+// 价格区间：15.00~29.00元
+viewPrice({ prices: [1500, 2900], fontSize: 40, left: 30, top: 350 });
+```
+
+渲染效果：
+
+- 单价：`￥` **15.** `00` `起`，其中 `15.` 为大字，其余为半字，基线自动对齐
+- 价格区间：`￥` **15.** `00` **~** **29.** `00`，大小字基线自动对齐
 
 ---
 
@@ -279,7 +329,7 @@ function measureText(text: string, fontSize: number, bold?: boolean): number;
     borderWidth: 2,
     borderColor: '#CCCCCC'
   },
-  views: []  // 子元素
+  views: []
 }
 ```
 
@@ -301,13 +351,14 @@ background: "linear-gradient(180deg, #EE3C3C 0%, #FFFFFF 100%)";
     borderRadius: 12,
     display: 'flex',
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'baseline',
     justifyContent: 'center',
-    padding: [20, 30]  // [上下, 左右] 或 [上, 右, 下, 左]
+    padding: [20, 30]
   },
   views: [
-    { type: 'image', css: { width: 30, height: 30, borderRadius: 15, marginRight: 8 } },
-    { type: 'text', text: '{{name}}', css: { fontSize: 24, width: 100, height: 24 } }
+    { type: 'text', text: '￥', css: { fontSize: 20, fontWeight: 'bold' } },
+    { type: 'text', text: '29.9', css: { fontSize: 40, fontWeight: 'bold' } },
+    { type: 'text', text: '起', css: { fontSize: 20 } }
   ]
 }
 ```
@@ -319,41 +370,45 @@ background: "linear-gradient(180deg, #EE3C3C 0%, #FFFFFF 100%)";
 ```javascript
 {
   type: 'image',
-  src: '{{coverImage}}',  // 支持模板变量
+  src: '{{coverImage}}',
   css: {
     left: 96,
     top: 160,
     width: 560,
     height: 478,
     borderRadius: 12,
-    objectFit: 'cover'     // 'fill' | 'cover' | 'contain'
+    objectFit: 'cover'
   }
 }
 ```
 
 #### text — 文本
 
-绘制文本，支持多行换行、省略号、删除线。
+绘制文本，支持多行换行、省略号、删除线。`height` 可省略，引擎自动计算。
 
 ```javascript
 {
   type: 'text',
-  text: '{{titleText}}',  // 支持模板变量
+  text: '{{titleText}}',
   css: {
     left: 96,
     top: 730,
     fontSize: 32,
-    fontWeight: 'bold',     // 'normal' | 'bold' | '400' | '700'
+    fontWeight: 'bold',
     fontFamily: 'sans-serif',
     color: '#181818',
-    textAlign: 'left',      // 'left' | 'center' | 'right'
-    lineHeight: 1.4,        // 行高倍数（不是 px）
-    maxWidth: 560,          // 超过则换行或省略
-    ellipsis: true,         // 单行省略号
-    lines: 2                // 最大行数（0 = 不限）
+    textAlign: 'left',
+    lineHeight: 1.4,
+    maxWidth: 560,
+    ellipsis: true,
+    lines: 2
   }
 }
 ```
+
+**自动高度**：不设置 `height` 时，引擎根据文本内容和 `lineHeight` 自动计算高度。这使得 text 在 Flex 布局中可正确参与对齐和间距计算。
+
+> **提示**：多字号文本需要底部对齐时，在 Flex 容器中使用 `alignItems: 'baseline'`，而非 `flex-end`。`baseline` 按文字基线对齐，而非盒子底部对齐。
 
 #### qrcode — 二维码
 
@@ -362,14 +417,14 @@ background: "linear-gradient(180deg, #EE3C3C 0%, #FFFFFF 100%)";
 ```javascript
 {
   type: 'qrcode',
-  text: '{{qrcodeUrl}}',   // 或 src: '{{qrcodeUrl}}'
+  text: '{{qrcodeUrl}}',
   css: {
     left: 504,
     top: 842,
     width: 160,
     height: 160,
-    color: '#000000',                       // 前景色
-    background: '#FFFFFF'                   // 背景色
+    color: '#000000',
+    background: '#FFFFFF'
   }
 }
 ```
@@ -389,23 +444,32 @@ background: "linear-gradient(180deg, #EE3C3C 0%, #FFFFFF 100%)";
 | `right`        | `number`             | -      | 右侧定位                       |
 | `bottom`       | `number`             | -      | 底部定位                       |
 | `width`        | `number`             | -      | 宽度                           |
-| `height`       | `number`             | -      | 高度                           |
+| `height`       | `number`             | -      | 高度（text 可省略）            |
 | `opacity`      | `number`             | `1`    | 透明度（0-1），不参与 rpx 缩放 |
 | `borderRadius` | `number \| number[]` | `0`    | 圆角，支持 `[lt, rt, rb, lb]`  |
 
 ### view 属性
 
-| 属性              | 类型                                          | 默认值         | 说明           |
-| ----------------- | --------------------------------------------- | -------------- | -------------- |
-| `background`      | `string`                                      | -              | 背景色或渐变   |
-| `backgroundColor` | `string`                                      | -              | 同 background  |
-| `borderWidth`     | `number`                                      | -              | 边框宽度       |
-| `borderColor`     | `string`                                      | -              | 边框颜色       |
-| `display`         | `'flex'`                                      | -              | 启用 Flex 布局 |
-| `flexDirection`   | `'row' \| 'column'`                           | `'row'`        | 主轴方向       |
-| `alignItems`      | `'flex-start' \| 'center' \| 'flex-end'`      | `'flex-start'` | 交叉轴对齐     |
-| `justifyContent`  | `'flex-start' \| 'center' \| 'space-between'` | `'flex-start'` | 主轴对齐       |
-| `padding`         | `number \| number[]`                          | `0`            | 内边距         |
+| 属性              | 类型                                                   | 默认值         | 说明           |
+| ----------------- | ------------------------------------------------------ | -------------- | -------------- |
+| `background`      | `string`                                               | -              | 背景色或渐变   |
+| `backgroundColor` | `string`                                               | -              | 同 background  |
+| `borderWidth`     | `number`                                               | -              | 边框宽度       |
+| `borderColor`     | `string`                                               | -              | 边框颜色       |
+| `display`         | `'flex'`                                               | -              | 启用 Flex 布局 |
+| `flexDirection`   | `'row' \| 'column'`                                    | `'row'`        | 主轴方向       |
+| `alignItems`      | `'flex-start' \| 'center' \| 'flex-end' \| 'baseline'` | `'flex-start'` | 交叉轴对齐     |
+| `justifyContent`  | `'flex-start' \| 'center' \| 'space-between'`          | `'flex-start'` | 主轴对齐       |
+| `padding`         | `number \| number[]`                                   | `0`            | 内边距         |
+
+**alignItems 说明**：
+
+| 值           | 行为                                 |
+| ------------ | ------------------------------------ |
+| `flex-start` | 交叉轴起点对齐                       |
+| `center`     | 交叉轴居中对齐                       |
+| `flex-end`   | 交叉轴终点对齐                       |
+| `baseline`   | 文字基线对齐（不同字号共享同一基线） |
 
 ### image 属性
 
@@ -415,18 +479,28 @@ background: "linear-gradient(180deg, #EE3C3C 0%, #FFFFFF 100%)";
 
 ### text 属性
 
-| 属性             | 类型                            | 默认值         | 说明                      |
-| ---------------- | ------------------------------- | -------------- | ------------------------- |
-| `fontSize`       | `number`                        | `14`           | 字号                      |
-| `fontWeight`     | `string \| number`              | `'normal'`     | 字重                      |
-| `fontFamily`     | `string`                        | `'sans-serif'` | 字体                      |
-| `color`          | `string`                        | `'#000000'`    | 文本颜色                  |
-| `textAlign`      | `'left' \| 'center' \| 'right'` | `'left'`       | 对齐方式                  |
-| `lineHeight`     | `number`                        | `1.4`          | 行高倍数，不参与 rpx 缩放 |
-| `maxWidth`       | `number`                        | -              | 最大宽度                  |
-| `ellipsis`       | `boolean`                       | `false`        | 单行省略号                |
-| `lines`          | `number`                        | `0`            | 最大行数，不参与 rpx 缩放 |
-| `textDecoration` | `'line-through' \| 'none'`      | -              | 文本装饰                  |
+| 属性              | 类型                            | 默认值         | 说明                                                   |
+| ----------------- | ------------------------------- | -------------- | ------------------------------------------------------ |
+| `fontSize`        | `number`                        | `14`           | 字号                                                   |
+| `fontWeight`      | `string \| number`              | `'normal'`     | 字重：`'normal'` / `'bold'` / `'400'` / `'700'` / 数字 |
+| `fontFamily`      | `string`                        | `'sans-serif'` | 字体                                                   |
+| `color`           | `string`                        | `'#000000'`    | 文本颜色                                               |
+| `textAlign`       | `'left' \| 'center' \| 'right'` | `'left'`       | 对齐方式                                               |
+| `lineHeight`      | `number`                        | `1.4`          | 行高倍数，不参与 rpx 缩放；>10 视为 px 值              |
+| `maxWidth`        | `number`                        | -              | 最大宽度，超过则换行或省略                             |
+| `ellipsis`        | `boolean`                       | `false`        | 单行省略号                                             |
+| `lines`           | `number`                        | `0`            | 最大行数，不参与 rpx 缩放                              |
+| `textDecoration`  | `'line-through' \| 'none'`      | -              | 文本装饰                                               |
+| `background`      | `string`                        | -              | 文本背景色                                             |
+| `backgroundColor` | `string`                        | -              | 同 background                                          |
+| `padding`         | `number \| number[]`            | `0`            | 文本区域内边距                                         |
+
+### qrcode 属性
+
+| 属性         | 类型     | 默认值      | 说明   |
+| ------------ | -------- | ----------- | ------ |
+| `color`      | `string` | `'#000000'` | 前景色 |
+| `background` | `string` | `'#FFFFFF'` | 背景色 |
 
 ### Flex 子元素 margin
 
@@ -441,15 +515,19 @@ Flex 布局中子元素支持的间距属性：
 
 ### 不参与 rpx 缩放的字段
 
-| 字段         | 语义                       |
-| ------------ | -------------------------- |
-| `opacity`    | 透明度 0~1                 |
-| `lines`      | 行数                       |
-| `flex`       | flex 比例                  |
-| `lineHeight` | 行高倍数                   |
-| `fontWeight` | 字重（数字形式如 400/700） |
-| `zIndex`     | 层叠顺序                   |
-| `dpr`        | 像素比                     |
+| 字段         | 语义            |
+| ------------ | --------------- |
+| `opacity`    | 透明度 0~1      |
+| `lines`      | 行数            |
+| `flex`       | flex 比例       |
+| `lineHeight` | 行高倍数        |
+| `fontWeight` | 字重            |
+| `zIndex`     | 层叠顺序        |
+| `dpr`        | 像素比          |
+| `text`       | 文本内容        |
+| `src`        | 图片/二维码地址 |
+| `color`      | 颜色值          |
+| `type`       | 元素类型        |
 
 ---
 
@@ -488,6 +566,18 @@ Canvas 内部尺寸小于元素坐标范围。确保 `canvas.width/height` 不�
 
 `fontSize` 单位为 rpx，确保 `useRpx: true`（默认值）。
 
+### 不同字号文本如何底部对齐
+
+在 Flex 容器中使用 `alignItems: 'baseline'`，引擎会按文字基线对齐。不要使用 `flex-end`（按盒子底部对齐，行距会导致基线偏移）。
+
+### 纯数字文本（如 "000"）渲染异常
+
+v1.0.0 已修复。之前 rpx 转换会误将纯数字字符串当作尺寸值处理，如 `"000"` → `0`。升级到 v1.0.0 即可。
+
+### text 元素不设 height 会怎样
+
+引擎自动根据文本内容、`fontSize` 和 `lineHeight` 计算高度，Flex 布局和圆角裁剪均可正常工作。
+
 ---
 
 ## 文件结构
@@ -495,13 +585,14 @@ Canvas 内部尺寸小于元素坐标范围。确保 `canvas.width/height` 不�
 ```
 ste-canvas-poster/
 ├── index.js               # 导出入口
-├── index.d.ts             # 函数类型声明
+├── index.d.ts             # 函数类型声明 + 类型再导出
 ├── types.d.ts             # Schema / CSS 类型声明
+├── CHANGELOG.md           # 更新日志
 ├── src/
 │   ├── posterAdapter.js   # 双端适配：Canvas 初始化、rpx 转换、图片预下载
 │   ├── posterEngine.js    # 绘制引擎：Schema 解析、Canvas 绘制
-│   ├── qrcodeGenerator.js # 二维码生成
-│   └── measureText.js     # 文本宽度计算
+│   ├── tools.js           # 工具函数：measureText、viewPrice、rpx2px 等
+│   └── qrcodeGenerator.js # 二维码生成
 └── package.json
 ```
 

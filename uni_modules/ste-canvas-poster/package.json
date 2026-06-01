@@ -2,7 +2,7 @@
   "id": "ste-canvas-poster",
   "displayName": "ste-canvas-poster",
   "name": "ste-canvas-poster",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "基于 Canvas 2D API 的声明式海报绘制引擎，支持微信小程序与 APP 双端",
   "type": "module",
   "main": "index.js",
@@ -26,7 +26,7 @@
     "flex-layout",
     "canvas-poster",
     "declarative"
-],
+  ],
   "repository": "https://github.com/wuhanshuzhiyun/ste-canvas-poster",
   "engines": {
     "HBuilderX": "^3.1.0",
@@ -69,12 +69,12 @@
         "uni-app": {
           "vue": {
             "vue2": {
-                "extVersion": "1.0.2",
-                "minVersion": ""
+              "extVersion": "1.0.2",
+              "minVersion": ""
             },
             "vue3": {
-                "extVersion": "1.0.2",
-                "minVersion": ""
+              "extVersion": "1.0.2",
+              "minVersion": ""
             }
           },
           "web": {
@@ -83,27 +83,27 @@
           },
           "app": {
             "vue": {
-                "extVersion": "1.0.2",
-                "minVersion": ""
+              "extVersion": "1.0.2",
+              "minVersion": ""
             },
             "nvue": {
-                "extVersion": "1.0.2",
-                "minVersion": ""
+              "extVersion": "1.0.2",
+              "minVersion": ""
             },
             "android": {
-                "extVersion": "1.0.2",
-                "minVersion": "19"
+              "extVersion": "1.0.2",
+              "minVersion": "19"
             },
             "ios": {
-                "extVersion": "1.0.2",
-                "minVersion": "16"
+              "extVersion": "1.0.2",
+              "minVersion": "16"
             },
             "harmony": "-"
           },
           "mp": {
             "weixin": {
-                "extVersion": "1.0.2",
-                "minVersion": ""
+              "extVersion": "1.0.2",
+              "minVersion": ""
             },
             "alipay": "-",
             "toutiao": "-",
@@ -145,7 +145,7 @@
     "CHANGELOG.md",
     "README.md",
     "LICENSE",
-    "src/measureText.js",
+    "src/tools.js",
     "src/posterAdapter.js",
     "src/posterEngine.js",
     "src/qrcodeGenerator.js"

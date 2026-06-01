@@ -1,6 +1,6 @@
 /**
  * posterAdapter.js - 海报引擎双端适配层
- * 版本：v0.0.1
+ * 版本：v1.2.0
  *
  * 功能：
  *  1. 兼容微信小程序 / APP 两端获取 Canvas 2D 节点
@@ -14,32 +14,7 @@
  */
 
 import { PosterEngine } from "./posterEngine.js";
-
-// ─────────────────────────────────────────────
-// 辅助：rpx → px 转换
-// ─────────────────────────────────────────────
-
-let _windowWidth = null;
-
-function getWindowWidth() {
-  const current = uni.getSystemInfoSync().windowWidth;
-  _windowWidth = current;
-  return _windowWidth;
-}
-
-export function rpx2px(rpx) {
-  if (_windowWidth == null) {
-    _windowWidth = getWindowWidth();
-  }
-  return (rpx * _windowWidth) / 750;
-}
-
-export function px2rpx(px) {
-  if (_windowWidth == null) {
-    _windowWidth = getWindowWidth();
-  }
-  return (px * 750) / _windowWidth;
-}
+import { getWindowWidth } from "./tools.js";
 
 /**
  * 将 Schema 中的 rpx 值转换为 px
@@ -54,6 +29,20 @@ const NON_DIMENSION_KEYS = new Set([
   "lineHeight",
   "zIndex",
   "dpr",
+  "text",
+  "src",
+  "color",
+  "borderColor",
+  "fontWeight",
+  "fontFamily",
+  "textAlign",
+  "textDecoration",
+  "objectFit",
+  "display",
+  "flexDirection",
+  "alignItems",
+  "justifyContent",
+  "type",
 ]);
 
 function shouldTransform(val) {
@@ -72,10 +61,7 @@ function transformValue(val, scale) {
 
 function transformSchemaRpx(schema) {
   if (!schema || typeof schema !== "object") return schema;
-  if (_windowWidth == null) {
-    _windowWidth = getWindowWidth() || 375;
-  }
-  const scale = _windowWidth / 750;
+  const scale = getWindowWidth() / 750;
 
   function traverseInPlace(obj) {
     if (Array.isArray(obj)) {
@@ -90,10 +76,7 @@ function transformSchemaRpx(schema) {
       if (value && typeof value === "object") {
         traverseInPlace(value);
       } else if (shouldTransform(value)) {
-        if (
-          NON_DIMENSION_KEYS.has(key) ||
-          (key === "fontWeight" && typeof value === "number")
-        ) {
+        if (NON_DIMENSION_KEYS.has(key)) {
           continue;
         }
         obj[key] = transformValue(value, scale);
@@ -171,10 +154,7 @@ async function preloadSchemaImages(schema, data = {}) {
                   newData[key] = localPath;
                 })
                 .catch((err) => {
-                  console.warn(
-                    "[posterAdapter] 图片预下载失败，保留原值:",
-                    err,
-                  );
+                  console.warn("[posterAdapter] 图片预下载失败，保留原值:", err);
                   // 下载失败保留原值
                 }),
             );
@@ -305,14 +285,7 @@ export function getCanvasNode(selector, vm) {
  * @param {boolean} [options.useRpx]  是否将 schema 中的数值视为 rpx 并自动转换（默认 true）
  * @returns {Promise<PosterEngine>}   返回引擎实例，供后续 save/share 使用
  */
-export async function renderPoster({
-  schema,
-  data = {},
-  selector,
-  vm,
-  dpr,
-  useRpx = true,
-}) {
+export async function renderPoster({ schema, data = {}, selector, vm, dpr, useRpx = true }) {
   if (!selector) throw new Error("[posterAdapter] selector 不能为空");
   if (!vm) throw new Error("[posterAdapter] vm 不能为空");
 
@@ -320,9 +293,7 @@ export async function renderPoster({
   const schemaCopy = JSON.parse(JSON.stringify(schema));
 
   // 自动将 schema 中的 rpx 转换为 px（业务层可以直接使用设计稿的 rpx 值）
-  const transformedSchema = useRpx
-    ? transformSchemaRpx(schemaCopy)
-    : schemaCopy;
+  const transformedSchema = useRpx ? transformSchemaRpx(schemaCopy) : schemaCopy;
 
   let preloadedData = data;
 
