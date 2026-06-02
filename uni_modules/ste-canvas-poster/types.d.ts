@@ -183,13 +183,18 @@ export interface ViewPriceOptions {
   prices?: number | string | (number | string)[];
   fontSize?: number;
   prefix?: string;
+  /** 不传或传空字符串时不渲染后缀 */
   suffix?: string;
   color?: string;
+  /** 不传则不设置定位属性 */
   top?: number;
+  /** 不传则不设置定位属性 */
   left?: number;
   priceBold?: boolean;
   prefixBold?: boolean;
   suffixBold?: boolean;
+  prefixMarginRight?: number;
+  suffixMarginLeft?: number;
 }
 
 // ─────────────────────────────────────────────

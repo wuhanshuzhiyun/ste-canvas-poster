@@ -73,117 +73,84 @@ export function px2rpx(px) {
   return (px * 750) / _windowWidth;
 }
 
+function makeText(text, { fontSize, color, fontWeight, marginLeft, marginRight } = {}) {
+  const css = { fontSize, color, fontWeight };
+  if (marginLeft) css.marginLeft = marginLeft;
+  if (marginRight) css.marginRight = marginRight;
+  return { type: "text", text: String(text), css };
+}
+
+function formatCents(cents) {
+  const y = Math.floor(cents / 100);
+  const f = cents % 100;
+  return { intPart: `${y}.`, decPart: f >= 10 ? String(f) : "0" + f };
+}
+
 export function viewPrice({
   prices = 0,
   priceBold = true,
   prefixBold = true,
   suffixBold = false,
   prefix = "￥",
-  suffix = "",
+  suffix,
   fontSize = 40,
   color = "#FF283A",
-  top = 0,
-  left = 0,
+  top,
+  left,
+  prefixMarginRight,
+  suffixMarginLeft,
 } = {}) {
   const mSize = fontSize / 2;
-  const result = {
+  const boldIf = (flag) => (flag ? "bold" : "normal");
+  const views = [];
+
+  if (prefix) {
+    views.push(
+      makeText(prefix, {
+        fontSize: mSize,
+        color,
+        fontWeight: boldIf(prefixBold),
+        marginRight: prefixMarginRight,
+      }),
+    );
+  }
+
+  if (Array.isArray(prices)) {
+    const nums = prices.map((item) => parseInt(item, 10) || 0);
+    const minP = formatCents(Math.min(...nums));
+    const maxP = formatCents(Math.max(...nums));
+
+    views.push(
+      makeText(minP.intPart, { fontSize, color, fontWeight: boldIf(priceBold) }),
+      makeText(minP.decPart, { fontSize: mSize, color, fontWeight: boldIf(priceBold) }),
+      makeText("~", { fontSize, color, fontWeight: boldIf(priceBold) }),
+      makeText(maxP.intPart, { fontSize, color, fontWeight: boldIf(priceBold) }),
+      makeText(maxP.decPart, { fontSize: mSize, color, fontWeight: boldIf(priceBold) }),
+    );
+  } else {
+    const pv = parseInt(prices, 10) || 0;
+    const p = formatCents(pv);
+
+    views.push(
+      makeText(p.intPart, { fontSize, color, fontWeight: boldIf(priceBold) }),
+      makeText(p.decPart, { fontSize: mSize, color, fontWeight: boldIf(priceBold) }),
+    );
+  }
+
+  if (suffix) {
+    views.push(
+      makeText(suffix, {
+        fontSize: mSize,
+        color,
+        fontWeight: boldIf(suffixBold),
+        marginLeft: suffixMarginLeft,
+      }),
+    );
+  }
+
+  return {
     type: "view",
     css: { left, top, display: "flex", alignItems: "baseline" },
-    views: [
-      {
-        type: "text",
-        text: prefix,
-        css: { fontSize: mSize, color, fontWeight: prefixBold ? "bold" : "normal" },
-      },
-    ],
+    views,
   };
-  if (typeof prices === "number" || typeof prices === "string") {
-    const pv = parseInt(prices, 10) || 0;
-    const y = Math.floor(pv / 100);
-    const f = (pv % 100 >= 10 ? pv % 100 : "0" + (pv % 100)).toString();
-
-    result.views.push({
-      type: "text",
-      text: `${y}.`,
-      css: {
-        fontSize,
-        color,
-        fontWeight: priceBold ? "bold" : "normal",
-      },
-    });
-
-    result.views.push({
-      type: "text",
-      text: f,
-      css: {
-        fontSize: mSize,
-        color,
-        fontWeight: priceBold ? "bold" : "normal",
-      },
-    });
-  } else if (Array.isArray(prices)) {
-    const nums = prices.map((item) => parseInt(item, 10) || 0);
-    const y = nums.map((v) => Math.floor(v / 100));
-    const f = nums.map((v) => v % 100);
-    const ys = Math.min(...y);
-    const fs = Math.min(...f) >= 10 ? String(Math.min(...f)) : "0" + Math.min(...f);
-    const ye = Math.max(...y);
-    const fe = Math.max(...f) >= 10 ? String(Math.max(...f)) : "0" + Math.max(...f);
-    result.views.push({
-      type: "text",
-      text: `${ys}.`,
-      css: {
-        fontSize,
-        color,
-        fontWeight: priceBold ? "bold" : "normal",
-      },
-    });
-    result.views.push({
-      type: "text",
-      text: fs,
-      css: {
-        fontSize: mSize,
-        color,
-        fontWeight: priceBold ? "bold" : "normal",
-      },
-    });
-    result.views.push({
-      type: "text",
-      text: "~",
-      css: {
-        fontSize,
-        color,
-        fontWeight: priceBold ? "bold" : "normal",
-      },
-    });
-
-    result.views.push({
-      type: "text",
-      text: `${ye}.`,
-      css: {
-        fontSize,
-        color,
-        fontWeight: priceBold ? "bold" : "normal",
-      },
-    });
-    result.views.push({
-      type: "text",
-      text: fe,
-      css: {
-        fontSize: mSize,
-        color,
-        fontWeight: priceBold ? "bold" : "normal",
-      },
-    });
-  }
-  result.views.push({
-    type: "text",
-    text: suffix,
-    css: {
-      fontSize: mSize,
-      color,
-      fontWeight: suffixBold ? "bold" : "normal",
-    },
-  });
-  return result;
 }

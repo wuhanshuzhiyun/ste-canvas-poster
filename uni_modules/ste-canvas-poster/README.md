@@ -252,18 +252,20 @@ function loadImage(canvas: any, src: string): Promise<any>;
 function viewPrice(options?: ViewPriceOptions): SchemaNode;
 ```
 
-| 参数         | 类型                              | 默认值      | 说明                                        |
-| ------------ | --------------------------------- | ----------- | ------------------------------------------- |
-| `prices`     | `number \| string \| Array`       | `0`         | 价格（分），如 1500 = 15.00元；数组表示区间 |
-| `fontSize`   | `number`                          | `40`        | 整数部分字号                                |
-| `prefix`     | `string`                          | `'￥'`      | 前缀文本                                    |
-| `suffix`     | `string`                          | `''`        | 后缀文本                                    |
-| `color`      | `string`                          | `'#FF283A'` | 文本颜色                                    |
-| `top`        | `number`                          | `0`         | y 坐标                                      |
-| `left`       | `number`                          | `0`         | x 坐标                                      |
-| `priceBold`  | `boolean`                         | `true`      | 价格是否加粗                                |
-| `prefixBold` | `boolean`                         | `true`      | 前缀是否加粗                                |
-| `suffixBold` | `boolean`                         | `false`     | 后缀是否加粗                                |
+| 参数               | 类型                              | 默认值      | 说明                                            |
+| ------------------ | --------------------------------- | ----------- | ----------------------------------------------- |
+| `prices`           | `number \| string \| Array`       | `0`         | 价格（分），如 1500 = 15.00元；数组表示区间     |
+| `fontSize`         | `number`                          | `40`        | 整数部分字号                                    |
+| `prefix`           | `string`                          | `'￥'`      | 前缀文本                                        |
+| `suffix`           | `string`                          | -           | 后缀文本，不传或传空则不渲染                    |
+| `color`            | `string`                          | `'#FF283A'` | 文本颜色                                        |
+| `top`              | `number`                          | -           | y 坐标，不传则不设置定位                        |
+| `left`             | `number`                          | -           | x 坐标，不传则不设置定位                        |
+| `priceBold`        | `boolean`                         | `true`      | 价格是否加粗                                    |
+| `prefixBold`       | `boolean`                         | `true`      | 前缀是否加粗                                    |
+| `suffixBold`       | `boolean`                         | `false`     | 后缀是否加粗                                    |
+| `prefixMarginRight`| `number`                          | -           | 前缀右侧间距（rpx）                             |
+| `suffixMarginLeft` | `number`                          | -           | 后缀左侧间距（rpx）                             |
 
 **示例**：
 

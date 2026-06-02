@@ -220,7 +220,7 @@ const testCases: TestCase[] = [
 							src: "{{productImage}}",
 							css: { left: 0, top: 0, height: 320, objectFit: "cover" },
 						},
-						viewPrice({ prices: 1500, top: 330, left: 30, suffix: "起", fontSize: 60 }),
+						viewPrice({ prices: 1500, top: 330, left: 30, suffix: "起", fontSize: 60, suffixMarginLeft: 12 }),
 						viewPrice({ prices: [1801, 5612], top: 330, left: 300 }),
 						{ type: "text", text: "{{productName}}", css: { left: 30, top: 400, fontSize: 40, color: "#2C3E50", fontWeight: "bold" } },
 						{ type: "text", text: "{{productDesc}}", css: { left: 30, top: 450, fontSize: 28, color: "#7F8C8D" } },
