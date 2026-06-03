@@ -26,7 +26,7 @@ const FONT_ASCENT_FALLBACK_RATIO = 0.8;
 const FONT_DESCENT_FALLBACK_RATIO = 0.2;
 
 // 行高阈值：>10 视为 px 值，否则视为 fontSize 倍数
-const LINE_HEIGHT_PX_THRESHOLD = 10;
+export const LINE_HEIGHT_PX_THRESHOLD = 10;
 
 // ─────────────────────────────────────────────
 // 工具函数
@@ -169,38 +169,26 @@ export function loadImage(canvas, src) {
 
     // #ifdef APP-PLUS
     if (canvas._canvasId) {
+      // data: URI 优先直传 getImageInfo（部分平台支持，省一次磁盘 IO）；失败再走临时文件
       if (/^data:image/i.test(normalizedSrc)) {
-        const img = {
-          src: normalizedSrc,
-          width: css.width || 200,
-          height: css.height || 200,
-          path: normalizedSrc,
-        };
-        resolve(img);
-        return;
-      }
-
-      if (/^_doc\/uniapp_temp_/i.test(normalizedSrc)) {
-        // 临时文件路径，尝试加载
+        const fallback = () => resolve({ src: normalizedSrc, width: 0, height: 0, path: normalizedSrc });
+        const done = (w, h) => resolve({ src: normalizedSrc, width: w, height: h, path: normalizedSrc });
         uni.getImageInfo({
           src: normalizedSrc,
-          success: (res) => {
-            const img = {
-              src: normalizedSrc,
-              width: res.width,
-              height: res.height,
-              path: res.path || normalizedSrc,
-            };
-            resolve(img);
-          },
-          fail: (err) => {
-            console.error("[PosterEngine] 临时文件加载失败:", err);
-            reject(new Error(`图片加载失败: ${err}`));
+          success: (res) => done(res.width, res.height),
+          fail: () => {
+            if (typeof uni.getFileSystemManager !== "function") return fallback();
+            const base64 = normalizedSrc.replace(/^data:image\/\w+;base64,/, "");
+            const tmp = `_doc/uniapp_temp_poster_${Date.now()}.png`;
+            uni.getFileSystemManager().writeFile({
+              filePath: tmp, data: base64, encoding: "base64",
+              success: () => uni.getImageInfo({ src: tmp, success: (res) => done(res.width, res.height), fail: fallback }),
+              fail: fallback,
+            });
           },
         });
         return;
       }
-
       uni.getImageInfo({
         src: normalizedSrc,
         success: (res) => {
@@ -247,6 +235,7 @@ export class PosterEngine {
     this.dpr = dpr || uni.getSystemInfoSync().pixelRatio || 2;
     this._imgCache = new Map();
     this._tplCache = new Map();
+    this._splitCache = new Map();
     this._destroyed = false;
     this._logicalWidth = schema.width || 0;
     this._logicalHeight = schema.height || 0;
@@ -259,6 +248,7 @@ export class PosterEngine {
   async render() {
     this._checkDestroyed();
     this._tplCache.clear();
+    this._splitCache.clear();
 
     const { width, height, backgroundImage, borderRadius, views = [] } = this.schema;
     const background = this.schema.background || this.schema.backgroundColor;
@@ -553,11 +543,12 @@ export class PosterEngine {
       const img = await this._loadImageCached(resolvedSrc);
       const ctx = this.ctx;
       const imgSrc = this._getImageSrc(img);
+      const hasSize = img.width > 0 && img.height > 0;
 
-      if (objectFit === "cover") {
+      if (hasSize && objectFit === "cover") {
         const { sx, sy, sw, sh, dx, dy, dw, dh } = calcCover(img.width, img.height, x, y, w, h);
         ctx.drawImage(imgSrc, sx, sy, sw, sh, dx, dy, dw, dh);
-      } else if (objectFit === "contain") {
+      } else if (hasSize && objectFit === "contain") {
         const scale = Math.min(w / img.width, h / img.height);
         const dw = img.width * scale;
         const dh = img.height * scale;
@@ -573,6 +564,7 @@ export class PosterEngine {
   }
 
   _splitTextLines(node, availableWidth, userWidth) {
+    if (this._splitCache.has(node)) return this._splitCache.get(node);
     const { text, css } = node;
     const resolvedText = this._resolveTemplate(String(text ?? ""));
 
@@ -633,7 +625,9 @@ export class PosterEngine {
       renderLines[renderLines.length - 1] = binarySearchTruncate(ctx, lastLine, textWidth) + "...";
     }
 
-    return { renderLines, textWidth, resolvedText };
+    const result = { renderLines, textWidth, resolvedText };
+    this._splitCache.set(node, result);
+    return result;
   }
 
   _resolveTextHeight(node, availableWidth) {
@@ -655,7 +649,6 @@ export class PosterEngine {
     const { left: x, top: y, width: elemWidth, maxWidth: elemMaxWidth } = css;
     const textWidth = userWidth || elemWidth || elemMaxWidth || this._logicalWidth;
 
-    this._setFont(css);
     ctx.textBaseline = "alphabetic";
 
     const drawX = this._calcTextDrawX(x, textWidth, textAlign, ctx);
@@ -665,8 +658,8 @@ export class PosterEngine {
 
     this._drawTextBackground(css, x, y, textWidth, renderLines.length * lineHeightPx);
 
-    const fontAscent = this._getFontAscent(css);
-    const halfLeading = this._getHalfLeading(css);
+    const { ascent: fontAscent, descent } = this._getFontMetrics(css);
+    const halfLeading = (lineHeightPx - fontAscent - descent) / 2;
     // CSS 标准：字形在行盒内距顶 = halfLeading（不因 _crossAlign 而变化）
     const leadingOffset = halfLeading;
 
@@ -767,53 +760,43 @@ export class PosterEngine {
       : fontSize * lineHeight;
   }
 
-  // 读取字体度量（ascent / descent），优先使用 fontBoundingBox，回退到 actualBoundingBox，最后使用经验比例
-  // 不缓存：每次都重新测量，避免字体动态加载后度量值与实际字形偏差
-  _getFontMetric(css, kind) {
-    const isAscent = kind === "ascent";
-    const primaryKey = isAscent ? "fontBoundingBoxAscent" : "fontBoundingBoxDescent";
-    const fallbackKey = isAscent ? "actualBoundingBoxAscent" : "actualBoundingBoxDescent";
-    const fallbackRatio = isAscent ? FONT_ASCENT_FALLBACK_RATIO : FONT_DESCENT_FALLBACK_RATIO;
-
+  // 一次拿到 ascent/descent，避免每个值单独 measureText
+  _getFontMetrics(css) {
     this._setFont(css);
     const ctx = this.ctx;
+    const fontSize = css.fontSize ?? DEFAULT_FONT_SIZE;
+    const fallback = { ascent: fontSize * FONT_ASCENT_FALLBACK_RATIO, descent: fontSize * FONT_DESCENT_FALLBACK_RATIO };
 
     try {
       const m1 = ctx.measureText("M");
-      if (m1[primaryKey]) return m1[primaryKey];
+      if (m1.fontBoundingBoxAscent && m1.fontBoundingBoxDescent) {
+        return { ascent: m1.fontBoundingBoxAscent, descent: m1.fontBoundingBoxDescent };
+      }
     } catch (e) {}
     try {
       const savedBaseline = ctx.textBaseline;
       ctx.textBaseline = "alphabetic";
       const m2 = ctx.measureText("M\u4E2D");
-      if (m2[fallbackKey]) {
-        ctx.textBaseline = savedBaseline;
-        return m2[fallbackKey];
+      ctx.textBaseline = savedBaseline || "alphabetic";
+      if (m2.actualBoundingBoxAscent || m2.actualBoundingBoxDescent) {
+        return { ascent: m2.actualBoundingBoxAscent || fallback.ascent, descent: m2.actualBoundingBoxDescent || fallback.descent };
       }
-      ctx.textBaseline = savedBaseline;
     } catch (e) {}
-    return (css.fontSize ?? DEFAULT_FONT_SIZE) * fallbackRatio;
-  }
-
-  _getFontAscent(css) {
-    return this._getFontMetric(css, "ascent");
-  }
-
-  _getFontDescent(css) {
-    return this._getFontMetric(css, "descent");
+    return fallback;
   }
 
   // 半行距：lineHeight 与实际字形高度的差值的一半
   _getHalfLeading(css) {
-    const lineHeightPx = this._getLineHeightPx(css);
-    const fontHeight = this._getFontAscent(css) + this._getFontDescent(css);
-    return (lineHeightPx - fontHeight) / 2;
+    const { ascent, descent } = this._getFontMetrics(css);
+    return (this._getLineHeightPx(css) - ascent - descent) / 2;
   }
 
   // 文字基线到行盒顶部的距离
   _getTextBaselineOffset(node) {
     if (node.type !== "text") return 0;
-    return this._getHalfLeading(node.css || {}) + this._getFontAscent(node.css || {});
+    const css = node.css || {};
+    const { ascent, descent } = this._getFontMetrics(css);
+    return (this._getLineHeightPx(css) - ascent - descent) / 2 + ascent;
   }
 
   async _drawFlexChildren(node) {
@@ -953,8 +936,8 @@ export class PosterEngine {
   _calcAlignOffset(align, start, size, childSize, marginStart, marginEnd) {
     switch (align) {
       case "center":
-        // 居中需先扣除 margin 占用的空间，再在剩余区域居中
-        return start + marginStart + (size - childSize - marginStart - marginEnd) / 2;
+        // 子元素中线对齐父盒子中线，margin 不参与居中计算
+        return start + (size - childSize) / 2;
       case "flex-end":
         return start + size - childSize - marginEnd;
       default:

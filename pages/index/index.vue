@@ -27,6 +27,7 @@
 import { ref, computed, onBeforeUnmount, getCurrentInstance } from "vue";
 import { renderPoster } from "@/uni_modules/ste-canvas-poster";
 import { PosterEngine, PosterSchema, TemplateData } from "@/uni_modules/ste-canvas-poster/types.d";
+import { base64Img } from "./base64img";
 
 const canvasWidth = 710;
 const canvasHeight = 1200;
@@ -206,8 +207,8 @@ const testCases: TestCase[] = [
 					type: "view",
 					css: { left: 40, top: 40, width: 630, height: 80, backgroundColor: "#fff", borderRadius: 24, display: "flex", alignItems: "flex-start" },
 					views: [
-						{ type: "image", src: "{{brandAvatar}}", css: { width: 60, height: 60, objectFit: "cover", borderRadius: 70 } },
-						{ type: "text", text: "{{brandName}}", css: { fontSize: 42, color: "#2C3E50", fontWeight: "bold" } },
+						{ type: "image", src: "data:image/png;base64," + base64Img, css: { width: 60, height: 60, objectFit: "cover", borderRadius: 70 } },
+						{ type: "text", text: "{{brandName}}", css: { fontSize: 30, color: "#2C3E50", fontWeight: "bold" } },
 					],
 				},
 				{
@@ -215,7 +216,7 @@ const testCases: TestCase[] = [
 					css: { left: 40, top: 130, width: 630, height: 80, backgroundColor: "#fff", borderRadius: 24, display: "flex", alignItems: "center" },
 					views: [
 						{ type: "image", src: "{{brandAvatar}}", css: { width: 60, height: 60, objectFit: "cover", borderRadius: 70 } },
-						{ type: "text", text: "{{brandName}}", css: { fontSize: 42, color: "#2C3E50", fontWeight: "bold", marginTop: 20 } },
+						{ type: "text", text: "{{brandName}}", css: { fontSize: 30, color: "#2C3E50", fontWeight: "bold", marginTop: 20 } },
 					],
 				},
 				{
@@ -223,7 +224,7 @@ const testCases: TestCase[] = [
 					css: { left: 40, top: 220, width: 630, height: 80, backgroundColor: "#fff", borderRadius: 24, display: "flex", alignItems: "flex-end" },
 					views: [
 						{ type: "image", src: "{{brandAvatar}}", css: { width: 60, height: 60, objectFit: "cover", borderRadius: 70 } },
-						{ type: "text", text: "{{brandName}}", css: { fontSize: 42, color: "#2C3E50", fontWeight: "bold", marginTop: 20 } },
+						{ type: "text", text: "{{brandName}}", css: { fontSize: 30, color: "#2C3E50", fontWeight: "bold", marginTop: 20 } },
 					],
 				},
 				{
@@ -231,7 +232,7 @@ const testCases: TestCase[] = [
 					css: { left: 40, top: 320, width: 630, height: 60, backgroundColor: "#fff", borderRadius: 12 },
 					views: [
 						{ type: "image", src: "{{brandAvatar}}", css: { width: 60, height: 60, objectFit: "cover", borderRadius: 70 } },
-						{ type: "text", text: "{{brandName}}12ABCabcg", css: { left: 66, lineHeight: 2, fontSize: 30, color: "#2C3E50", fontWeight: "bold" } },
+						{ type: "text", text: "{{brandName}}12ABCabcg", css: { left: 66, lineHeight: 60, fontSize: 30, color: "#2C3E50", fontWeight: "bold" } },
 					],
 				},
 				{

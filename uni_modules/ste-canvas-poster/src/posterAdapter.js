@@ -13,7 +13,7 @@
  *   await engine.saveToAlbum();
  */
 
-import { PosterEngine } from "./posterEngine.js";
+import { PosterEngine, LINE_HEIGHT_PX_THRESHOLD } from "./posterEngine.js";
 import { getWindowWidth } from "./tools.js";
 
 /**
@@ -26,7 +26,6 @@ const NON_DIMENSION_KEYS = new Set([
   "opacity",
   "lines",
   "flex",
-  "lineHeight",
   "zIndex",
   "dpr",
   "text",
@@ -76,6 +75,8 @@ function transformSchemaRpx(schema) {
       if (value && typeof value === "object") {
         traverseInPlace(value);
       } else if (shouldTransform(value)) {
+        // lineHeight ≤ 10 是倍数（不转），> 10 视为 px 值（需要 rpx→px 转换）
+        if (key === "lineHeight" && (typeof value !== "number" || value <= LINE_HEIGHT_PX_THRESHOLD)) continue;
         if (NON_DIMENSION_KEYS.has(key)) {
           continue;
         }

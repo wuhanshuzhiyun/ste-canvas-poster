@@ -2,7 +2,7 @@
   "id": "ste-canvas-poster",
   "displayName": "ste-canvas-poster",
   "name": "ste-canvas-poster",
-  "version": "1.2.4",
+  "version": "1.2.5",
   "description": "基于 Canvas 2D API 的声明式海报绘制引擎，支持微信小程序与 APP 双端",
   "type": "module",
   "main": "index.js",

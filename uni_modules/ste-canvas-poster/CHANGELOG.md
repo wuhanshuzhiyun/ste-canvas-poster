@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## 1.2.5（2026-06-04）
+### 修复
+- 修复`text`行高大于10时表现异常的问题
+
 ## 1.2.4（2026-06-03）
 ### 删除
 - 移除 `viewPrice` 业务方法，减小包体积
