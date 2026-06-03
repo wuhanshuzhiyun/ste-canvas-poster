@@ -12,6 +12,22 @@ import { generateQRMatrix } from "./qrcodeGenerator.js";
 // ─────────────────────────────────────────────
 const MAX_IMAGE_CACHE_SIZE = 50;
 
+// CSS 默认值
+const DEFAULT_FONT_SIZE = 14;
+const DEFAULT_LINE_HEIGHT = 1.4;
+const DEFAULT_FONT_WEIGHT = "normal";
+const DEFAULT_FONT_FAMILY = "sans-serif";
+const DEFAULT_TEXT_COLOR = "#000000";
+const DEFAULT_TEXT_ALIGN = "left";
+const DEFAULT_TEXT_DECORATION = "";
+
+// 字体度量兜底比例（浏览器无 fontBoundingBox 时使用）
+const FONT_ASCENT_FALLBACK_RATIO = 0.8;
+const FONT_DESCENT_FALLBACK_RATIO = 0.2;
+
+// 行高阈值：>10 视为 px 值，否则视为 fontSize 倍数
+const LINE_HEIGHT_PX_THRESHOLD = 10;
+
 // ─────────────────────────────────────────────
 // 工具函数
 // ─────────────────────────────────────────────
@@ -38,8 +54,8 @@ function binarySearchSplit(ctx, text, maxWidth) {
 }
 
 function binarySearchTruncate(ctx, text, maxWidth, suffix = "...") {
-  if (ctx.measureText(text).width + ctx.measureText(suffix).width <= maxWidth) return text;
   const suffixWidth = ctx.measureText(suffix).width;
+  if (ctx.measureText(text).width + suffixWidth <= maxWidth) return text;
   const targetWidth = maxWidth - suffixWidth;
   if (targetWidth <= 0) return "";
   let lo = 1;
@@ -561,9 +577,6 @@ export class PosterEngine {
     const resolvedText = this._resolveTemplate(String(text ?? ""));
 
     const ctx = this.ctx;
-    const fontSize = css.fontSize || 14;
-    const fontWeight = css.fontWeight || "normal";
-    const fontFamily = css.fontFamily || "sans-serif";
     const lines = css.lines || 0;
     const ellipsis = css.ellipsis || false;
 
@@ -608,19 +621,16 @@ export class PosterEngine {
     }
 
     let renderLines = allLines;
-    if (lines > 0 && allLines.length > lines) {
+    if (ellipsis && textWidth) {
+      // 单行省略号优先级高于多行截断
+      const singleLine = allLines.join("");
+      renderLines = ctx.measureText(singleLine).width > textWidth
+        ? [binarySearchTruncate(ctx, singleLine, textWidth) + "..."]
+        : [singleLine];
+    } else if (lines > 0 && allLines.length > lines) {
       renderLines = allLines.slice(0, lines);
       const lastLine = renderLines[renderLines.length - 1];
       renderLines[renderLines.length - 1] = binarySearchTruncate(ctx, lastLine, textWidth) + "...";
-    }
-
-    if (ellipsis && textWidth) {
-      const singleLine = allLines.join("");
-      if (ctx.measureText(singleLine).width > textWidth) {
-        renderLines = [binarySearchTruncate(ctx, singleLine, textWidth) + "..."];
-      } else {
-        renderLines = [singleLine];
-      }
     }
 
     return { renderLines, textWidth, resolvedText };
@@ -630,25 +640,17 @@ export class PosterEngine {
     const css = node.css || {};
     if (css.height != null) return css.height;
 
-    const fontSize = css.fontSize || 14;
-    const lineHeight = css.lineHeight || 1.4;
-    const lineHeightPx = typeof lineHeight === "number" && lineHeight > 10 ? lineHeight : fontSize * lineHeight;
-
     const { renderLines } = this._splitTextLines(node, availableWidth, css.width);
-    return renderLines.length * lineHeightPx;
+    return renderLines.length * this._getLineHeightPx(css);
   }
 
   _drawText(node, userWidth) {
     const { css } = node;
     const ctx = this.ctx;
-    const fontSize = css.fontSize || 14;
-    const fontWeight = css.fontWeight || "normal";
-    const fontFamily = css.fontFamily || "sans-serif";
-    const color = css.color || "#000000";
-    const textAlign = css.textAlign || "left";
-    const lineHeight = css.lineHeight || 1.4;
-    const textDecoration = css.textDecoration || "";
-    const textBgColor = css.background || css.backgroundColor;
+    const fontSize = css.fontSize ?? DEFAULT_FONT_SIZE;
+    const color = css.color ?? DEFAULT_TEXT_COLOR;
+    const textAlign = css.textAlign ?? DEFAULT_TEXT_ALIGN;
+    const textDecoration = css.textDecoration ?? DEFAULT_TEXT_DECORATION;
 
     const { left: x, top: y, width: elemWidth, maxWidth: elemMaxWidth } = css;
     const textWidth = userWidth || elemWidth || elemMaxWidth || this._logicalWidth;
@@ -656,60 +658,78 @@ export class PosterEngine {
     this._setFont(css);
     ctx.textBaseline = "alphabetic";
 
-    let drawX = x;
-    if (textAlign === "center") {
-      drawX = x + (textWidth || 0) / 2;
-      ctx.textAlign = "center";
-    } else if (textAlign === "right") {
-      drawX = x + (textWidth || 0);
-      ctx.textAlign = "right";
-    } else {
-      ctx.textAlign = "left";
-    }
-
-    const lineHeightPx = typeof lineHeight === "number" && lineHeight > 10 ? lineHeight : fontSize * lineHeight;
+    const drawX = this._calcTextDrawX(x, textWidth, textAlign, ctx);
 
     const { renderLines } = this._splitTextLines(node, this._logicalWidth, userWidth);
+    const lineHeightPx = this._getLineHeightPx(css);
 
-    if (textBgColor) {
-      const pd = parsePadding(css.padding);
-      ctx.fillStyle = textBgColor;
-      const bgX = x;
-      const bgY = y;
-      const bgW = textWidth || 0;
-      const bgH = renderLines.length * lineHeightPx;
-      if (css.borderRadius) {
-        roundRectPath(ctx, bgX - pd.left, bgY - pd.top, bgW + pd.left + pd.right, bgH + pd.top + pd.bottom, css.borderRadius);
-        ctx.fill();
-      } else {
-        ctx.fillRect(bgX - pd.left, bgY - pd.top, bgW + pd.left + pd.right, bgH + pd.top + pd.bottom);
-      }
-    }
+    this._drawTextBackground(css, x, y, textWidth, renderLines.length * lineHeightPx);
 
-    const halfLeading = (lineHeightPx - fontSize) / 2;
     const fontAscent = this._getFontAscent(css);
+    const halfLeading = this._getHalfLeading(css);
+    const leadingOffset = css._crossAlign === "flex-start" || css._crossAlign === "center" ? 0 : halfLeading;
+
     ctx.fillStyle = color;
     renderLines.forEach((line, i) => {
-      const baselineY = y + halfLeading + fontAscent + i * lineHeightPx;
+      const baselineY = y + leadingOffset + fontAscent + i * lineHeightPx;
       ctx.fillText(line, drawX, baselineY);
 
       if (textDecoration === "line-through") {
-        const lineWidth = ctx.measureText(line).width;
-        let lineStartX = drawX;
-        if (textAlign === "center") {
-          lineStartX = drawX - lineWidth / 2;
-        } else if (textAlign === "right") {
-          lineStartX = drawX - lineWidth;
-        }
-        const midY = baselineY - fontAscent / 2;
-        ctx.beginPath();
-        ctx.moveTo(lineStartX, midY);
-        ctx.lineTo(lineStartX + lineWidth, midY);
-        ctx.strokeStyle = color;
-        ctx.lineWidth = Math.max(1, fontSize / 16);
-        ctx.stroke();
+        this._drawTextLineThrough(line, drawX, baselineY, fontAscent, fontSize, textAlign, color);
       }
     });
+  }
+
+  // 根据 textAlign 计算文本绘制起点
+  _calcTextDrawX(x, textWidth, textAlign, ctx) {
+    if (textAlign === "center") {
+      ctx.textAlign = "center";
+      return x + (textWidth || 0) / 2;
+    }
+    if (textAlign === "right") {
+      ctx.textAlign = "right";
+      return x + (textWidth || 0);
+    }
+    ctx.textAlign = "left";
+    return x;
+  }
+
+  // 绘制文字背景（包含 padding 和 borderRadius）
+  _drawTextBackground(css, x, y, textWidth, textHeight) {
+    const textBgColor = css.background || css.backgroundColor;
+    if (!textBgColor) return;
+
+    const ctx = this.ctx;
+    const pd = parsePadding(css.padding);
+    ctx.fillStyle = textBgColor;
+    const w = (textWidth || 0) + pd.left + pd.right;
+    const h = textHeight + pd.top + pd.bottom;
+
+    if (css.borderRadius) {
+      roundRectPath(ctx, x - pd.left, y - pd.top, w, h, css.borderRadius);
+      ctx.fill();
+    } else {
+      ctx.fillRect(x - pd.left, y - pd.top, w, h);
+    }
+  }
+
+  // 绘制删除线（line-through）
+  _drawTextLineThrough(line, drawX, baselineY, fontAscent, fontSize, textAlign, color) {
+    const ctx = this.ctx;
+    const lineWidth = ctx.measureText(line).width;
+    let lineStartX = drawX;
+    if (textAlign === "center") {
+      lineStartX = drawX - lineWidth / 2;
+    } else if (textAlign === "right") {
+      lineStartX = drawX - lineWidth;
+    }
+    const midY = baselineY - fontAscent / 2;
+    ctx.beginPath();
+    ctx.moveTo(lineStartX, midY);
+    ctx.lineTo(lineStartX + lineWidth, midY);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = Math.max(1, fontSize / 16);
+    ctx.stroke();
   }
 
   async _drawView(node) {
@@ -731,42 +751,68 @@ export class PosterEngine {
   }
 
   _setFont(css) {
-    const fontSize = css.fontSize || 14;
-    const fontWeight = css.fontWeight || "normal";
-    const fontFamily = css.fontFamily || "sans-serif";
+    const fontSize = css.fontSize ?? DEFAULT_FONT_SIZE;
+    const fontWeight = css.fontWeight ?? DEFAULT_FONT_WEIGHT;
+    const fontFamily = css.fontFamily ?? DEFAULT_FONT_FAMILY;
     this.ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
   }
 
-  _getFontAscent(css) {
-    const fontSize = css.fontSize || 14;
+  // 解析 lineHeight 为像素值：>10 视为 px，否则视为 fontSize 倍数
+  _getLineHeightPx(css) {
+    const fontSize = css.fontSize ?? DEFAULT_FONT_SIZE;
+    const lineHeight = css.lineHeight ?? DEFAULT_LINE_HEIGHT;
+    return typeof lineHeight === "number" && lineHeight > LINE_HEIGHT_PX_THRESHOLD
+      ? lineHeight
+      : fontSize * lineHeight;
+  }
+
+  // 读取字体度量（ascent / descent），优先使用 fontBoundingBox，回退到 actualBoundingBox，最后使用经验比例
+  // 不缓存：每次都重新测量，避免字体动态加载后度量值与实际字形偏差
+  _getFontMetric(css, kind) {
+    const isAscent = kind === "ascent";
+    const primaryKey = isAscent ? "fontBoundingBoxAscent" : "fontBoundingBoxDescent";
+    const fallbackKey = isAscent ? "actualBoundingBoxAscent" : "actualBoundingBoxDescent";
+    const fallbackRatio = isAscent ? FONT_ASCENT_FALLBACK_RATIO : FONT_DESCENT_FALLBACK_RATIO;
+
     this._setFont(css);
     const ctx = this.ctx;
+
     try {
-      const metrics = ctx.measureText("M");
-      if (metrics.fontBoundingBoxAscent) return metrics.fontBoundingBoxAscent;
+      const m1 = ctx.measureText("M");
+      if (m1[primaryKey]) return m1[primaryKey];
     } catch (e) {}
     try {
       const savedBaseline = ctx.textBaseline;
       ctx.textBaseline = "alphabetic";
-      const metrics = ctx.measureText("M\u4E2D");
-      if (metrics.actualBoundingBoxAscent) {
+      const m2 = ctx.measureText("M\u4E2D");
+      if (m2[fallbackKey]) {
         ctx.textBaseline = savedBaseline;
-        return metrics.actualBoundingBoxAscent;
+        return m2[fallbackKey];
       }
       ctx.textBaseline = savedBaseline;
     } catch (e) {}
-    return fontSize * 0.9;
+    return (css.fontSize ?? DEFAULT_FONT_SIZE) * fallbackRatio;
   }
 
+  _getFontAscent(css) {
+    return this._getFontMetric(css, "ascent");
+  }
+
+  _getFontDescent(css) {
+    return this._getFontMetric(css, "descent");
+  }
+
+  // 半行距：lineHeight 与实际字形高度的差值的一半
+  _getHalfLeading(css) {
+    const lineHeightPx = this._getLineHeightPx(css);
+    const fontHeight = this._getFontAscent(css) + this._getFontDescent(css);
+    return (lineHeightPx - fontHeight) / 2;
+  }
+
+  // 文字基线到行盒顶部的距离
   _getTextBaselineOffset(node) {
     if (node.type !== "text") return 0;
-    const css = node.css || {};
-    const fontSize = css.fontSize || 14;
-    const lineHeight = css.lineHeight || 1.4;
-    const lineHeightPx = typeof lineHeight === "number" && lineHeight > 10 ? lineHeight : fontSize * lineHeight;
-    const halfLeading = (lineHeightPx - fontSize) / 2;
-    const ascent = this._getFontAscent(css);
-    return halfLeading + ascent;
+    return this._getHalfLeading(node.css || {}) + this._getFontAscent(node.css || {});
   }
 
   async _drawFlexChildren(node) {
@@ -786,6 +832,8 @@ export class PosterEngine {
 
     const childSizes = children.map((child) => {
       const childCss = child.css || {};
+      const isText = child.type === "text";
+      const halfLeading = isText ? this._getHalfLeading(childCss) : 0;
       return {
         ml: childCss.marginLeft || 0,
         mr: childCss.marginRight || 0,
@@ -793,7 +841,8 @@ export class PosterEngine {
         mb: childCss.marginBottom || 0,
         cw: this._resolveChildWidth(child, innerW),
         ch: this._resolveChildHeight(child, innerW, innerH),
-        baselineOffset: this._getTextBaselineOffset(child),
+        baselineOffset: isText ? this._getTextBaselineOffset(child) : 0,
+        halfLeading,
       };
     });
 
@@ -827,7 +876,7 @@ export class PosterEngine {
       const child = children[idx];
       const childCss = child.css || {};
       const s = childSizes[idx];
-      const { ml, mr, mt, mb, cw, ch, baselineOffset } = s;
+      const { ml, mr, mt, mb, cw, ch, baselineOffset, halfLeading: hl } = s;
 
       let cx, cy;
 
@@ -837,6 +886,7 @@ export class PosterEngine {
           cy = innerY + mt + (maxBaseline - baselineOffset);
         } else {
           cy = this._calcAlignOffset(alignItems, innerY, innerH, ch, mt, mb);
+          if (alignItems === "center" && child.type === "text") cy += hl;
         }
         cursor = cx + cw + mr;
         if (justifyContent === "space-between") cursor += gap;
@@ -851,10 +901,13 @@ export class PosterEngine {
         if (justifyContent === "space-between") cursor += gap;
       }
 
+      if (child.type === "text" && isRow) childCss._crossAlign = alignItems;
+
       const savedLeft = childCss.left;
       const savedTop = childCss.top;
       const savedWidth = childCss.width;
       const savedHeight = childCss.height;
+      const savedCrossAlign = childCss._crossAlign;
       childCss.left = cx;
       childCss.top = cy;
       childCss.width = cw;
@@ -864,6 +917,11 @@ export class PosterEngine {
       childCss.top = savedTop;
       childCss.width = savedWidth;
       childCss.height = savedHeight;
+      if (savedCrossAlign === undefined) {
+        delete childCss._crossAlign;
+      } else {
+        childCss._crossAlign = savedCrossAlign;
+      }
     }
   }
 

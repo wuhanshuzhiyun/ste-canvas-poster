@@ -204,16 +204,39 @@ const testCases: TestCase[] = [
 			views: [
 				{
 					type: "view",
-					css: { left: 40, top: 40, width: 630, height: 200, backgroundColor: "rgba(255,255,255,0.95)", borderRadius: 24 },
+					css: { left: 40, top: 40, width: 630, height: 80, backgroundColor: "#fff", borderRadius: 24, display: "flex", alignItems: "flex-start" },
 					views: [
-						{ type: "image", src: "{{brandAvatar}}", css: { left: 30, top: 30, width: 140, height: 140, objectFit: "cover", borderRadius: 70 } },
-						{ type: "text", text: "{{brandName}}", css: { left: 200, top: 40, fontSize: 48, color: "#2C3E50", fontWeight: "bold" } },
-						{ type: "text", text: "为您推荐", css: { left: 200, top: 120, fontSize: 32, color: "#7F8C8D" } },
+						{ type: "image", src: "{{brandAvatar}}", css: { width: 60, height: 60, objectFit: "cover", borderRadius: 70 } },
+						{ type: "text", text: "{{brandName}}", css: { fontSize: 30, color: "#2C3E50", fontWeight: "bold" } },
 					],
 				},
 				{
 					type: "view",
-					css: { left: 40, top: 280, width: 630, height: 500, backgroundColor: "rgba(255,255,255,0.95)", borderRadius: 24 },
+					css: { left: 40, top: 130, width: 630, height: 80, backgroundColor: "#fff", borderRadius: 24, display: "flex", alignItems: "center" },
+					views: [
+						{ type: "image", src: "{{brandAvatar}}", css: { width: 60, height: 60, objectFit: "cover", borderRadius: 70 } },
+						{ type: "text", text: "{{brandName}}", css: { fontSize: 30, color: "#2C3E50", fontWeight: "bold" } },
+					],
+				},
+				{
+					type: "view",
+					css: { left: 40, top: 220, width: 630, height: 80, backgroundColor: "#fff", borderRadius: 24, display: "flex", alignItems: "flex-end" },
+					views: [
+						{ type: "image", src: "{{brandAvatar}}", css: { width: 60, height: 60, objectFit: "cover", borderRadius: 70 } },
+						{ type: "text", text: "{{brandName}}", css: { fontSize: 30, color: "#2C3E50", fontWeight: "bold" } },
+					],
+				},
+				{
+					type: "view",
+					css: { left: 40, top: 320, width: 630, height: 60, backgroundColor: "#fff", borderRadius: 12 },
+					views: [
+						{ type: "image", src: "{{brandAvatar}}", css: { width: 60, height: 60, objectFit: "cover", borderRadius: 70 } },
+						{ type: "text", text: "{{brandName}}12ABCabcg", css: { left: 66, lineHeight: 2, fontSize: 30, color: "#2C3E50", fontWeight: "bold" } },
+					],
+				},
+				{
+					type: "view",
+					css: { left: 40, top: 400, width: 630, height: 500, backgroundColor: "#fff", borderRadius: 24 },
 					views: [
 						{
 							type: "image",
@@ -226,7 +249,7 @@ const testCases: TestCase[] = [
 						{ type: "text", text: "{{productDesc}}", css: { left: 30, top: 450, fontSize: 28, color: "#7F8C8D" } },
 					],
 				},
-				{ type: "qrcode", src: "{{qrcodeUrl}}", css: { left: 255, top: 900, width: 200, height: 200 } },
+				{ type: "qrcode", src: "{{qrcodeUrl}}", css: { left: 255, top: 920, width: 200, height: 200 } },
 			],
 		},
 		data: {

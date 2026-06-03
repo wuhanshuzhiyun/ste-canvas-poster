@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## 1.2.2（2026-06-03）
+### 修复
+- 修复`flex`布局图文对齐问题
+- 修复 text 元素自动高度计算问题
+
+## 1.2.1（2026-06-02）
+### 修复
+- 修复`flex`布局图文对齐问题
+
 ## 1.2.0 (2026-05-28)
 
 ### 新增
