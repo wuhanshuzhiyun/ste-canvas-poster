@@ -667,7 +667,8 @@ export class PosterEngine {
 
     const fontAscent = this._getFontAscent(css);
     const halfLeading = this._getHalfLeading(css);
-    const leadingOffset = css._crossAlign === "flex-start" || css._crossAlign === "center" ? 0 : halfLeading;
+    // CSS 标准：字形在行盒内距顶 = halfLeading（不因 _crossAlign 而变化）
+    const leadingOffset = halfLeading;
 
     ctx.fillStyle = color;
     renderLines.forEach((line, i) => {
@@ -876,7 +877,7 @@ export class PosterEngine {
       const child = children[idx];
       const childCss = child.css || {};
       const s = childSizes[idx];
-      const { ml, mr, mt, mb, cw, ch, baselineOffset, halfLeading: hl } = s;
+      const { ml, mr, mt, mb, cw, ch, baselineOffset } = s;
 
       let cx, cy;
 
@@ -886,7 +887,6 @@ export class PosterEngine {
           cy = innerY + mt + (maxBaseline - baselineOffset);
         } else {
           cy = this._calcAlignOffset(alignItems, innerY, innerH, ch, mt, mb);
-          if (alignItems === "center" && child.type === "text") cy += hl;
         }
         cursor = cx + cw + mr;
         if (justifyContent === "space-between") cursor += gap;
@@ -901,13 +901,10 @@ export class PosterEngine {
         if (justifyContent === "space-between") cursor += gap;
       }
 
-      if (child.type === "text" && isRow) childCss._crossAlign = alignItems;
-
       const savedLeft = childCss.left;
       const savedTop = childCss.top;
       const savedWidth = childCss.width;
       const savedHeight = childCss.height;
-      const savedCrossAlign = childCss._crossAlign;
       childCss.left = cx;
       childCss.top = cy;
       childCss.width = cw;
@@ -917,11 +914,6 @@ export class PosterEngine {
       childCss.top = savedTop;
       childCss.width = savedWidth;
       childCss.height = savedHeight;
-      if (savedCrossAlign === undefined) {
-        delete childCss._crossAlign;
-      } else {
-        childCss._crossAlign = savedCrossAlign;
-      }
     }
   }
 
@@ -961,7 +953,8 @@ export class PosterEngine {
   _calcAlignOffset(align, start, size, childSize, marginStart, marginEnd) {
     switch (align) {
       case "center":
-        return start + (size - childSize) / 2;
+        // 居中需先扣除 margin 占用的空间，再在剩余区域居中
+        return start + marginStart + (size - childSize - marginStart - marginEnd) / 2;
       case "flex-end":
         return start + size - childSize - marginEnd;
       default:

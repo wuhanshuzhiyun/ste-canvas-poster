@@ -207,7 +207,7 @@ const testCases: TestCase[] = [
 					css: { left: 40, top: 40, width: 630, height: 80, backgroundColor: "#fff", borderRadius: 24, display: "flex", alignItems: "flex-start" },
 					views: [
 						{ type: "image", src: "{{brandAvatar}}", css: { width: 60, height: 60, objectFit: "cover", borderRadius: 70 } },
-						{ type: "text", text: "{{brandName}}", css: { fontSize: 30, color: "#2C3E50", fontWeight: "bold" } },
+						{ type: "text", text: "{{brandName}}", css: { fontSize: 42, color: "#2C3E50", fontWeight: "bold" } },
 					],
 				},
 				{
@@ -215,7 +215,7 @@ const testCases: TestCase[] = [
 					css: { left: 40, top: 130, width: 630, height: 80, backgroundColor: "#fff", borderRadius: 24, display: "flex", alignItems: "center" },
 					views: [
 						{ type: "image", src: "{{brandAvatar}}", css: { width: 60, height: 60, objectFit: "cover", borderRadius: 70 } },
-						{ type: "text", text: "{{brandName}}", css: { fontSize: 30, color: "#2C3E50", fontWeight: "bold" } },
+						{ type: "text", text: "{{brandName}}", css: { fontSize: 42, color: "#2C3E50", fontWeight: "bold", marginTop: 20 } },
 					],
 				},
 				{
@@ -223,7 +223,7 @@ const testCases: TestCase[] = [
 					css: { left: 40, top: 220, width: 630, height: 80, backgroundColor: "#fff", borderRadius: 24, display: "flex", alignItems: "flex-end" },
 					views: [
 						{ type: "image", src: "{{brandAvatar}}", css: { width: 60, height: 60, objectFit: "cover", borderRadius: 70 } },
-						{ type: "text", text: "{{brandName}}", css: { fontSize: 30, color: "#2C3E50", fontWeight: "bold" } },
+						{ type: "text", text: "{{brandName}}", css: { fontSize: 42, color: "#2C3E50", fontWeight: "bold", marginTop: 20 } },
 					],
 				},
 				{
@@ -243,8 +243,11 @@ const testCases: TestCase[] = [
 							src: "{{productImage}}",
 							css: { left: 0, top: 0, height: 320, objectFit: "cover" },
 						},
-						viewPrice({ prices: 1500, top: 330, left: 30, suffix: "起", fontSize: 60, suffixMarginLeft: 12 }),
-						viewPrice({ prices: [1801, 5612], top: 330, left: 300 }),
+						{
+							type: "view",
+							css: { left: 30, top: 330, height: 60, backgroundColor: "#eee", borderRadius: 12 },
+							views: [viewPrice({ prices: 1500, suffix: "起", fontSize: 48, suffixMarginLeft: 12 }), viewPrice({ prices: [1801, 5612], left: 200 })],
+						},
 						{ type: "text", text: "{{productName}}", css: { left: 30, top: 400, fontSize: 40, color: "#2C3E50", fontWeight: "bold" } },
 						{ type: "text", text: "{{productDesc}}", css: { left: 30, top: 450, fontSize: 28, color: "#7F8C8D" } },
 					],

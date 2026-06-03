@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## 1.2.3（2026-06-03）
+### 修复
+- 修复`flex`布局下`text`样式异常BUG
+
 ## 1.2.2（2026-06-03）
 ### 修复
 - 修复`flex`布局图文对齐问题

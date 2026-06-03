@@ -74,7 +74,7 @@ export function px2rpx(px) {
 }
 
 function makeText(text, { fontSize, color, fontWeight, marginLeft, marginRight } = {}) {
-  const css = { fontSize, color, fontWeight };
+  const css = { fontSize, color, fontWeight, lineHeight: 1 };
   if (marginLeft) css.marginLeft = marginLeft;
   if (marginRight) css.marginRight = marginRight;
   return { type: "text", text: String(text), css };
