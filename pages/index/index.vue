@@ -25,7 +25,7 @@
 
 <script lang="ts" setup>
 import { ref, computed, onBeforeUnmount, getCurrentInstance } from "vue";
-import { renderPoster, viewPrice } from "@/uni_modules/ste-canvas-poster";
+import { renderPoster } from "@/uni_modules/ste-canvas-poster";
 import { PosterEngine, PosterSchema, TemplateData } from "@/uni_modules/ste-canvas-poster/types.d";
 
 const canvasWidth = 710;
@@ -245,8 +245,13 @@ const testCases: TestCase[] = [
 						},
 						{
 							type: "view",
-							css: { left: 30, top: 330, height: 60, backgroundColor: "#eee", borderRadius: 12 },
-							views: [viewPrice({ prices: 1500, suffix: "起", fontSize: 48, suffixMarginLeft: 12 }), viewPrice({ prices: [1801, 5612], left: 200 })],
+							css: { left: 30, top: 330, height: 60, backgroundColor: "#eee", borderRadius: 12, display: "flex", alignItems: "baseline" },
+							views: [
+								{ type: "text", text: "￥", css: { fontSize: 24, color: "#E74C3C", lineHeight: 1, fontWeight: "bold" } },
+								{ type: "text", text: "15", css: { fontSize: 48, color: "#E74C3C", lineHeight: 1, fontWeight: "bold" } },
+								{ type: "text", text: ".00", css: { fontSize: 24, color: "#E74C3C", lineHeight: 1, fontWeight: "bold" } },
+								{ type: "text", text: "起", css: { fontSize: 24, color: "#E74C3C", lineHeight: 1 } },
+							],
 						},
 						{ type: "text", text: "{{productName}}", css: { left: 30, top: 400, fontSize: 40, color: "#2C3E50", fontWeight: "bold" } },
 						{ type: "text", text: "{{productDesc}}", css: { left: 30, top: 450, fontSize: 28, color: "#7F8C8D" } },

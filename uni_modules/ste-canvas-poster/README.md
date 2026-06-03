@@ -10,7 +10,6 @@
 - **Flex 布局** — view 容器支持 `display: 'flex'` 及子元素 margin、baseline 对齐
 - **自动高度** — text 元素可省略 height，引擎根据内容自动计算
 - **内置二维码** — qrcode 类型直接生成二维码，无需额外依赖
-- **快捷组件** — viewPrice 价格组合，大小字基线自动对齐
 - **TypeScript 支持** — 完整类型声明，开发时自动补全
 
 ## 安装
@@ -241,50 +240,6 @@ function loadImage(canvas: any, src: string): Promise<any>;
 ```
 
 **返回值**：包含 `width`、`height`、`path` 的图片对象
-
-### 快捷组件
-
-#### viewPrice(options?)
-
-生成价格组合 Schema，大小字基线自动对齐。
-
-```typescript
-function viewPrice(options?: ViewPriceOptions): SchemaNode;
-```
-
-| 参数               | 类型                              | 默认值      | 说明                                            |
-| ------------------ | --------------------------------- | ----------- | ----------------------------------------------- |
-| `prices`           | `number \| string \| Array`       | `0`         | 价格（分），如 1500 = 15.00元；数组表示区间     |
-| `fontSize`         | `number`                          | `40`        | 整数部分字号                                    |
-| `prefix`           | `string`                          | `'￥'`      | 前缀文本                                        |
-| `suffix`           | `string`                          | -           | 后缀文本，不传或传空则不渲染                    |
-| `color`            | `string`                          | `'#FF283A'` | 文本颜色                                        |
-| `top`              | `number`                          | -           | y 坐标，不传则不设置定位                        |
-| `left`             | `number`                          | -           | x 坐标，不传则不设置定位                        |
-| `priceBold`        | `boolean`                         | `true`      | 价格是否加粗                                    |
-| `prefixBold`       | `boolean`                         | `true`      | 前缀是否加粗                                    |
-| `suffixBold`       | `boolean`                         | `false`     | 后缀是否加粗                                    |
-| `prefixMarginRight`| `number`                          | -           | 前缀右侧间距（rpx）                             |
-| `suffixMarginLeft` | `number`                          | -           | 后缀左侧间距（rpx）                             |
-
-**示例**：
-
-```javascript
-import { viewPrice } from "ste-canvas-poster";
-
-// 单价：15.00元起
-viewPrice({ prices: 1500, suffix: "起", fontSize: 40, left: 30, top: 350 });
-
-// 价格区间：15.00~29.00元
-viewPrice({ prices: [1500, 2900], fontSize: 40, left: 30, top: 350 });
-```
-
-渲染效果：
-
-- 单价：`￥` **15.** `00` `起`，其中 `15.` 为大字，其余为半字，基线自动对齐
-- 价格区间：`￥` **15.** `00` **~** **29.** `00`，大小字基线自动对齐
-
----
 
 ## Schema 规范
 
@@ -593,7 +548,7 @@ ste-canvas-poster/
 ├── src/
 │   ├── posterAdapter.js   # 双端适配：Canvas 初始化、rpx 转换、图片预下载
 │   ├── posterEngine.js    # 绘制引擎：Schema 解析、Canvas 绘制
-│   ├── tools.js           # 工具函数：measureText、viewPrice、rpx2px 等
+│   ├── tools.js           # 工具函数：measureText、rpx2px 等
 │   └── qrcodeGenerator.js # 二维码生成
 └── package.json
 ```

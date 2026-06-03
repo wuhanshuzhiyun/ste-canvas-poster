@@ -1,4 +1,4 @@
-import { RenderPosterOptions, PosterEngine, SchemaNode, ViewPriceOptions, PosterSchema, TemplateData, ToTempFilePathOptions } from "./types";
+import { RenderPosterOptions, PosterEngine } from "./types";
 
 export function renderPoster(options: RenderPosterOptions): Promise<PosterEngine>;
 
@@ -14,7 +14,6 @@ export function measureText(text: string, fontSize: number, bold?: boolean): num
 
 export function loadImage(canvas: any, src: string): Promise<any>;
 
-export function viewPrice(options?: ViewPriceOptions): SchemaNode;
 
 export { PosterEngine } from "./types";
 
@@ -28,7 +27,6 @@ export type {
   QrcodeNode,
   RenderPosterOptions,
   ToTempFilePathOptions,
-  ViewPriceOptions,
   CommonCss,
   ViewCss,
   ImageCss,

@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## 1.2.4（2026-06-03）
+### 删除
+- 移除 `viewPrice` 业务方法，减小包体积
+
 ## 1.2.3（2026-06-03）
 ### 修复
 - 修复`flex`布局下`text`样式异常BUG
