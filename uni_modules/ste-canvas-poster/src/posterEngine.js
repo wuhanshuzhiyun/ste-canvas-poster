@@ -429,6 +429,27 @@ export class PosterEngine {
       css.height = this._resolveTextHeight(node, resolvedWidth);
     }
 
+    if (type === "image" && css.height == null && css.objectFit === "widthFix") {
+      const resolvedSrc = this._resolveTemplate(node.src);
+      if (resolvedSrc) {
+        try {
+          const img = await this._loadImageCached(resolvedSrc);
+          css.height = Math.ceil((img.height / img.width) * resolvedWidth);
+        } catch (e) {}
+      }
+    }
+
+    if (type === "image" && css.width == null && css.objectFit === "heightFix") {
+      const resolvedSrc = this._resolveTemplate(node.src);
+      if (resolvedSrc) {
+        try {
+          const img = await this._loadImageCached(resolvedSrc);
+          css.width = Math.ceil((img.width / img.height) * (css.height || 0));
+          resolvedWidth = css.width;
+        } catch (e) {}
+      }
+    }
+
     const resolvedHeight = css.height ?? 0;
 
     let x, y;
@@ -555,6 +576,14 @@ export class PosterEngine {
         const dx = x + (w - dw) / 2;
         const dy = y + (h - dh) / 2;
         ctx.drawImage(imgSrc, dx, dy, dw, dh);
+      } else if (objectFit === "widthFix") {
+        const dw = w;
+        const dh = (img.height / img.width) * w;
+        ctx.drawImage(imgSrc, x, y, dw, dh);
+      } else if (objectFit === "heightFix") {
+        const dh = h;
+        const dw = (img.width / img.height) * h;
+        ctx.drawImage(imgSrc, x, y, dw, dh);
       } else {
         ctx.drawImage(imgSrc, x, y, w, h);
       }

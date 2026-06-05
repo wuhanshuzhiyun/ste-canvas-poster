@@ -3,7 +3,8 @@
 		<view class="test-selector">
 			<view class="selector-title">选择测试项</view>
 			<view class="selector-list">
-				<view v-for="(item, index) in testCases" :key="index" class="selector-item" :class="{ active: currentTest === index }" @click="selectTest(index)">
+				<view v-for="(item, index) in testCases" :key="index" class="selector-item"
+					:class="{ active: currentTest === index }" @click="selectTest(index)">
 					{{ item.name }}
 				</view>
 			</view>
@@ -18,7 +19,8 @@
 		</view>
 
 		<view class="canvas-wrapper" :style="[canvasSize]">
-			<canvas id="testCanvas" canvas-id="testCanvas" type="2d" style="width: 100%; height: 100%" class="test-canvas"></canvas>
+			<canvas id="testCanvas" canvas-id="testCanvas" type="2d" style="width: 100%; height: 100%"
+				class="test-canvas"></canvas>
 		</view>
 	</view>
 </template>
@@ -147,25 +149,20 @@ const testCases: TestCase[] = [
 			width: canvasWidth,
 			height: canvasHeight,
 			views: [
-				{ type: "image", src: "{{coverImage}}", css: { left: 40, top: 40, width: 630, height: 300, objectFit: "fill", borderRadius: 24 } },
-				{ type: "image", src: "{{coverImage}}", css: { left: 40, top: 360, width: 630, height: 300, objectFit: "cover", borderRadius: 24 } },
-				{ type: "image", src: "{{coverImage}}", css: { left: 40, top: 680, width: 630, height: 300, objectFit: "contain", borderRadius: 24 } },
-				{
-					type: "view",
-					css: { left: 40, top: 1000, width: 630, height: 180, backgroundColor: "#f5f5f5", borderRadius: 20 },
-					views: [
-						{ type: "image", src: "{{avatarImage}}", css: { left: 20, top: 20, width: 140, height: 140, objectFit: "cover", borderRadius: 70 } },
-						{ type: "text", text: "{{userName}}", css: { left: 180, top: 40, fontSize: 48, color: "#2C3E50", fontWeight: "bold" } },
-						{ type: "text", text: "{{userDesc}}", css: { left: 180, top: 100, width: 430, fontSize: 36, color: "#7F8C8D", ellipsis: true } },
-					],
-				},
+				{ type: "text", text: "👇 objectFit: fill", css: { left: 20, top: 10, width: 300, fontSize: 24, color: "#f99", fontWeight: "bold", textAlign: "center" } },
+				{ type: "image", src: "{{coverImage}}", css: { left: 20, top: 60, width: 300, height: 150, objectFit: "fill", borderRadius: 24 } },
+				{ type: "text", text: "👇 objectFit: cover", css: { left: 340, top: 10, width: 300, fontSize: 24, color: "#f99", fontWeight: "bold", textAlign: "center" } },
+				{ type: "image", src: "{{coverImage}}", css: { left: 340, top: 60, width: 300, height: 150, objectFit: "cover", borderRadius: 24 } },
+				{ type: "text", text: "👇 objectFit: contain", css: { left: 20, top: 220, width: 300, fontSize: 24, color: "#f99", fontWeight: "bold", textAlign: "center" } },
+				{ type: "image", src: "{{coverImage}}", css: { left: 20, top: 270, width: 300, height: 150, objectFit: "contain", borderRadius: 24 } },
+				{ type: "text", text: "👇 objectFit: widthFix", css: { left: 340, top: 220, width: 300, fontSize: 24, color: "#f99", fontWeight: "bold", textAlign: "center" } },
+				{ type: "image", src: "{{coverImage}}", css: { left: 340, top: 270, width: 300, objectFit: "widthFix", borderRadius: 24 } },
+				{ type: "text", text: "👇 objectFit: heightFix", css: { left: 20, top: 450, width: 300, fontSize: 24, color: "#f99", fontWeight: "bold", textAlign: "center" } },
+				{ type: "image", src: "{{coverImage}}", css: { left: 20, top: 500, height: 150, objectFit: "heightFix", borderRadius: 24 } },
 			],
 		},
 		data: {
 			coverImage: "https://picsum.photos/600/600",
-			avatarImage: "https://picsum.photos/200/200",
-			userName: "王某人",
-			userDesc: "究极软件开发工程师 · 8000年经验",
 		},
 	},
 	{

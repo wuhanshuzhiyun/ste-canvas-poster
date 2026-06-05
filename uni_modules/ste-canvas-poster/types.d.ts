@@ -26,7 +26,7 @@ export type AlignItems = "flex-start" | "center" | "flex-end" | "baseline";
 export type JustifyContent = "flex-start" | "center" | "space-between";
 
 /** objectFit 模式 */
-export type ObjectFit = "fill" | "cover" | "contain";
+export type ObjectFit = "fill" | "cover" | "contain" | "widthFix" | "heightFix";
 
 /** 背景色或渐变字符串 */
 export type BackgroundValue = string;

@@ -2,25 +2,43 @@
 
 All notable changes to this project will be documented in this file.
 
+## 1.2.6（2026-06-06）
+
+### 新增
+
+- 新增`image`元素`css`属性`objectFit`值：
+  - `widthFix`: 宽度固定为 `width`，高度按原图比例自动计算。
+  - `heightFix`：高度固定为 `height`，宽度按原图比例自动计算。
+
 ## 1.2.5（2026-06-04）
+
 ### 修复
+
 - 修复`text`行高大于10时表现异常的问题
 
 ## 1.2.4（2026-06-03）
+
 ### 删除
+
 - 移除 `viewPrice` 业务方法，减小包体积
 
 ## 1.2.3（2026-06-03）
+
 ### 修复
+
 - 修复`flex`布局下`text`样式异常BUG
 
 ## 1.2.2（2026-06-03）
+
 ### 修复
+
 - 修复`flex`布局图文对齐问题
 - 修复 text 元素自动高度计算问题
 
 ## 1.2.1（2026-06-02）
+
 ### 修复
+
 - 修复`flex`布局图文对齐问题
 
 ## 1.2.0 (2026-05-28)
@@ -42,7 +60,7 @@ All notable changes to this project will be documented in this file.
 ### 优化
 
 - 合并 measureText.js 到 tools.js，精简文件结构
-- _splitTextLines 抽取为独立方法，消除 _drawText 中的重复代码
+- \_splitTextLines 抽取为独立方法，消除 \_drawText 中的重复代码
 - NON_DIMENSION_KEYS 扩充，新增 text/src/color/fontWeight 等非尺寸属性排除
 - package.json 适配 UniApp 官方插件市场完整格式（dcloudext、uni_modules.platforms）
 
