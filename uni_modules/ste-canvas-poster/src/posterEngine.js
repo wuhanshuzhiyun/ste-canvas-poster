@@ -6,6 +6,7 @@
  */
 
 import { generateQRMatrix } from "./qrcodeGenerator.js";
+import { generateBarcodeMatrix } from "./barcodeGenerator.js";
 
 // ─────────────────────────────────────────────
 // 常量
@@ -178,9 +179,11 @@ export function loadImage(canvas, src) {
           success: (res) => done(res.width, res.height),
           fail: () => {
             if (typeof uni.getFileSystemManager !== "function") return fallback();
+			const fileSystem = uni.getFileSystemManager();
+			if(!fileSystem) return fallback();
             const base64 = normalizedSrc.replace(/^data:image\/\w+;base64,/, "");
             const tmp = `_doc/uniapp_temp_poster_${Date.now()}.png`;
-            uni.getFileSystemManager().writeFile({
+            fileSystem.writeFile({
               filePath: tmp, data: base64, encoding: "base64",
               success: () => uni.getImageInfo({ src: tmp, success: (res) => done(res.width, res.height), fail: fallback }),
               fail: fallback,
@@ -493,6 +496,9 @@ export class PosterEngine {
         break;
       case "qrcode":
         await this._drawQRCode(node);
+        break;
+      case "barcode":
+        await this._drawBarcode(node);
         break;
       default:
         console.warn(`[PosterEngine] 未知元素类型: ${type}`);
@@ -1006,6 +1012,69 @@ export class PosterEngine {
       }
     } catch (e) {
       console.error("[PosterEngine] 二维码生成失败", e);
+    }
+  }
+
+  async _drawBarcode(node) {
+    const rawText = node.text ?? node.src ?? "";
+    const resolvedText = this._resolveTemplate(rawText);
+    if (resolvedText == null || resolvedText === "") return;
+
+    const { css } = node;
+    const { left: x, top: y, width: w, height: h } = css;
+    const format = (node.format || "EAN13").toString().toUpperCase();
+    const bgColor = css.background || css.backgroundColor || "#FFFFFF";
+    const barColor = css.color || "#000000";
+    // showText：EAN13 默认 true，Code-128 默认 false
+    const showText = css.showText != null ? !!css.showText : format === "EAN13";
+    const textColor = css.textColor || barColor;
+    // 文本区域高度：默认 18；css.textSize 可覆盖
+    const textSize = css.textSize ?? 18;
+    const textMargin = css.textMargin ?? 4;
+
+    try {
+      const result = generateBarcodeMatrix({ format, text: resolvedText });
+      const bits = result.bits[0];
+      const moduleCount = bits.length;
+
+      // 文本占用底部高度
+      const textAreaH = showText ? textSize + textMargin * 2 : 0;
+      const barAreaH = h - textAreaH;
+      if (barAreaH <= 0 || w <= 0) return;
+
+      // 计算每个 module 像素宽（保留完整比例）
+      const moduleW = w / moduleCount;
+      const ctx = this.ctx;
+
+      // 背景
+      ctx.fillStyle = bgColor;
+      ctx.fillRect(x, y, w, h);
+
+      // 条码
+      ctx.fillStyle = barColor;
+      for (let i = 0; i < moduleCount; i++) {
+        if (bits[i] === 1) {
+          ctx.fillRect(
+            Math.floor(x + i * moduleW),
+            Math.floor(y),
+            Math.ceil(moduleW),
+            Math.floor(barAreaH),
+          );
+        }
+      }
+
+      // 文本（EAN-13 显示完整 13 位；Code-128 显示原文）
+      if (showText) {
+        ctx.save();
+        ctx.fillStyle = textColor;
+        ctx.font = `${textSize}px sans-serif`;
+        ctx.textBaseline = "top";
+        ctx.textAlign = "center";
+        ctx.fillText(result.humanReadable, x + w / 2, y + barAreaH + textMargin);
+        ctx.restore();
+      }
+    } catch (e) {
+      console.error("[PosterEngine] 条码生成失败", e);
     }
   }
 

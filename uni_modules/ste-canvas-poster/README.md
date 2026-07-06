@@ -10,6 +10,7 @@
 - **Flex 布局** — view 容器支持 `display: 'flex'` 及子元素 margin、baseline 对齐
 - **自动高度** — text 元素可省略 height，引擎根据内容自动计算
 - **内置二维码** — qrcode 类型直接生成二维码，无需额外依赖
+- **内置条码** — barcode 类型支持 EAN-13 / Code-128，无需额外依赖
 - **TypeScript 支持** — 完整类型声明，开发时自动补全
 
 ## 安装
@@ -396,6 +397,46 @@ background: "linear-gradient(180deg, #EE3C3C 0%, #FFFFFF 100%)";
 }
 ```
 
+#### barcode — 条码
+
+生成并绘制一维条码（EAN-13 / Code-128），内容支持模板变量。无需引入任何第三方库。
+
+```javascript
+// EAN-13：可传 12 位（自动补校验位）或 13 位（自动校验）
+{
+  type: 'barcode',
+  format: 'EAN13',
+  text: '6901028001234',
+  css: {
+    left: 100,
+    top: 600,
+    width: 550,
+    height: 200,
+    color: '#000000',
+    background: '#FFFFFF',
+    showText: true,         // EAN13 默认 true
+    textSize: 18,
+    textColor: '#000000'
+  }
+}
+
+// Code-128：支持 ASCII 32–127
+{
+  type: 'barcode',
+  format: 'CODE128',
+  text: 'SKU-2026-A001',
+  css: {
+    left: 100,
+    top: 850,
+    width: 550,
+    height: 120,
+    color: '#1f6feb',
+    showText: false,        // Code-128 默认 false
+    textSize: 16
+  }
+}
+```
+
 ---
 
 ## CSS 属性参考
@@ -468,6 +509,21 @@ background: "linear-gradient(180deg, #EE3C3C 0%, #FFFFFF 100%)";
 | ------------ | -------- | ----------- | ------ |
 | `color`      | `string` | `'#000000'` | 前景色 |
 | `background` | `string` | `'#FFFFFF'` | 背景色 |
+
+### barcode 属性
+
+| 属性         | 类型      | 默认值               | 说明                                       |
+| ------------ | --------- | -------------------- | ------------------------------------------ |
+| `format`     | `'EAN13' \| 'CODE128'` | `'EAN13'`  | 条码格式                                   |
+| `color`      | `string`  | `'#000000'`          | 条码前景色（条形颜色）                     |
+| `background` | `string`  | `'#FFFFFF'`          | 背景色                                     |
+| `showText`   | `boolean` | EAN13 `true` / CODE128 `false` | 是否在底部显示条码内容文本     |
+| `textSize`   | `number`  | `18`                 | 文本字号（px）                             |
+| `textColor`  | `string`  | 同 `color`           | 文本颜色                                   |
+| `textMargin` | `number`  | `4`                  | 文本与条形之间的间距                        |
+
+> **校验**：EAN-13 接收 12 位数字时自动计算 mod-10 校验位；接收 13 位时会校验末位，不匹配抛错。
+> **字符集**：Code-128 使用 Code Set B（ASCII 32–127 全部可打印字符）。
 
 ### Flex 子元素 margin
 

@@ -426,6 +426,44 @@ const testCases: TestCase[] = [
 		data: {},
 	},
 	{
+		name: "10. 条码渲染",
+		description: "测试 EAN-13 / Code-128 条码生成与样式",
+		schema: {
+			width: canvasWidth,
+			height: canvasHeight,
+			views: [
+				{
+					type: "view",
+					css: { left: 40, top: 40, width: 630, height: 320, backgroundColor: "#FFFFFF", borderRadius: 16 },
+					views: [
+						{ type: "text", text: "EAN-13（自动补校验位）", css: { left: 16, top: 16, fontSize: 24, color: "#6C757D", fontWeight: "bold" } },
+					{ type: "barcode", format: "EAN13", text: "690102800123", css: { left: 40, top: 56, width: 550, height: 220, backgroundColor: "#FFFFFF", color: "#000000" } },
+					],
+				},
+				{
+					type: "view",
+					css: { left: 40, top: 400, width: 630, height: 320, backgroundColor: "#FFFFFF", borderRadius: 16 },
+					views: [
+						{ type: "text", text: "EAN-13（13 位 + 模板变量）", css: { left: 16, top: 16, fontSize: 24, color: "#6C757D", fontWeight: "bold" } },
+						{ type: "barcode", format: "EAN13", text: "{{ean13}}", css: { left: 40, top: 56, width: 550, height: 220, backgroundColor: "#FFFFFF", color: "#1f6feb" } },
+					],
+				},
+				{
+					type: "view",
+					css: { left: 40, top: 760, width: 630, height: 320, backgroundColor: "#FFFFFF", borderRadius: 16 },
+					views: [
+						{ type: "text", text: "Code-128（ASCII）", css: { left: 16, top: 16, fontSize: 24, color: "#6C757D", fontWeight: "bold" } },
+						{ type: "barcode", format: "CODE128", text: "{{sku}}", css: { left: 40, top: 56, width: 550, height: 220, backgroundColor: "#FFFFFF", color: "#000000", showText: true, textSize: 22, textColor: "#E74C3C" } },
+					],
+				},
+			],
+		},
+		data: {
+			ean13: "5901234123457",
+			sku: "SKU-2026-A001",
+		},
+	},
+	{
 		name: "9. Flex 纵向布局",
 		description: "测试 flexDirection: column、padding、margin",
 		schema: {

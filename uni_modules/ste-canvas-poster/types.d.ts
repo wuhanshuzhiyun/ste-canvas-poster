@@ -131,7 +131,15 @@ export interface QrcodeNode {
   css?: QrcodeCss & FlexChildCss;
 }
 
-export type SchemaNode = ViewNode | ImageNode | TextNode | QrcodeNode;
+export interface BarcodeNode {
+  type: "barcode";
+  format?: "EAN13" | "CODE128" | "EAN-13" | "CODE-128";
+  text?: string | TemplateString;
+  src?: string | TemplateString;
+  css?: BarcodeCss & FlexChildCss;
+}
+
+export type SchemaNode = ViewNode | ImageNode | TextNode | QrcodeNode | BarcodeNode;
 
 // ─────────────────────────────────────────────
 // 根 Schema
