@@ -284,9 +284,13 @@ export function getCanvasNode(selector, vm) {
  * @param {Object}  options.vm        Vue 组件实例（this）
  * @param {number}  [options.dpr]     像素比（可选，默认自动获取）
  * @param {boolean} [options.useRpx]  是否将 schema 中的数值视为 rpx 并自动转换（默认 true）
+ * @param {Object}  [options.exportOptions] 导出图片选项 { fileType, quality }
+ *   - fileType: 'png' | 'jpg' | 'webp'，默认 'png'
+ *   - quality:  0–1，仅 jpg/webp 有效
+ *   不传时也支持后续 engine.saveToAlbum({ fileType, quality }) 覆盖
  * @returns {Promise<PosterEngine>}   返回引擎实例，供后续 save/share 使用
  */
-export async function renderPoster({ schema, data = {}, selector, vm, dpr, useRpx = true }) {
+export async function renderPoster({ schema, data = {}, selector, vm, dpr, useRpx = true, exportOptions }) {
   if (!selector) throw new Error("[posterAdapter] selector 不能为空");
   if (!vm) throw new Error("[posterAdapter] vm 不能为空");
 
@@ -308,6 +312,7 @@ export async function renderPoster({ schema, data = {}, selector, vm, dpr, useRp
     schema: transformedSchema,
     data: preloadedData,
     dpr,
+    exportOptions,
   });
   await engine.render();
   return engine;

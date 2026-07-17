@@ -134,14 +134,15 @@ computed: {
 function renderPoster(options: RenderPosterOptions): Promise<PosterEngine>;
 ```
 
-| 参数       | 类型                  | 必填 | 默认值   | 说明                                  |
-| ---------- | --------------------- | ---- | -------- | ------------------------------------- |
-| `schema`   | `PosterSchema`        | 是   | -        | 海报结构描述                          |
-| `data`     | `TemplateData`        | 否   | `{}`     | 模板变量数据                          |
-| `selector` | `string`              | 是   | -        | Canvas 选择器，如 `'#myCanvas'`       |
-| `vm`       | `Record<string, any>` | 是   | -        | Vue 组件实例                          |
-| `dpr`      | `number`              | 否   | 自动获取 | 像素比                                |
-| `useRpx`   | `boolean`             | 否   | `true`   | 是否将 schema 数值视为 rpx 并自动转换 |
+| 参数            | 类型                  | 必填 | 默认值   | 说明                                  |
+| --------------- | --------------------- | ---- | -------- | ------------------------------------- |
+| `schema`        | `PosterSchema`        | 是   | -        | 海报结构描述                          |
+| `data`          | `TemplateData`        | 否   | `{}`     | 模板变量数据                          |
+| `selector`      | `string`              | 是   | -        | Canvas 选择器，如 `'#myCanvas'`       |
+| `vm`            | `Record<string, any>` | 是   | -        | Vue 组件实例                          |
+| `dpr`           | `number`              | 否   | 自动获取 | 像素比                                |
+| `useRpx`        | `boolean`             | 否   | `true`   | 是否将 schema 数值视为 rpx 并自动转换 |
+| `exportOptions` | `ToTempFilePathOptions` | 否 | `{}`     | 默认导出格式与质量，透传到 saveToAlbum |
 
 **返回值**：`Promise<PosterEngine>` — 引擎实例
 
@@ -149,13 +150,18 @@ function renderPoster(options: RenderPosterOptions): Promise<PosterEngine>;
 
 渲染完成后返回的引擎实例，提供以下方法：
 
-#### engine.saveToAlbum()
+#### engine.saveToAlbum(options?)
 
 导出图片并保存到系统相册。
 
 ```typescript
-saveToAlbum(): Promise<string>
+saveToAlbum(options?: ToTempFilePathOptions): Promise<string>
 ```
+
+| 参数       | 类型                            | 默认值  | 说明                                       |
+| ---------- | ------------------------------- | ------- | ------------------------------------------ |
+| `fileType` | `'png' \| 'jpg' \| 'webp'`     | `'png'` | 导出格式                                   |
+| `quality`  | `number`                        | `1`     | 图片质量 0-1，仅 jpg/webp 有效，png 无效    |
 
 **返回值**：临时文件路径
 
@@ -167,10 +173,10 @@ saveToAlbum(): Promise<string>
 toTempFilePath(options?: ToTempFilePathOptions): Promise<string>
 ```
 
-| 参数       | 类型             | 默认值  | 说明                         |
-| ---------- | ---------------- | ------- | ---------------------------- |
-| `fileType` | `'png' \| 'jpg'` | `'png'` | 导出格式                     |
-| `quality`  | `number`         | `1`     | 图片质量（0-1），仅 jpg 有效 |
+| 参数       | 类型                            | 默认值  | 说明                         |
+| ---------- | ------------------------------- | ------- | ---------------------------- |
+| `fileType` | `'png' \| 'jpg' \| 'webp'`     | `'png'` | 导出格式                     |
+| `quality`  | `number`                        | `1`     | 图片质量（0-1），仅 jpg/webp 有效 |
 
 **返回值**：临时文件路径
 

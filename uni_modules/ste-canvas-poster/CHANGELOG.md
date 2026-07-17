@@ -1,17 +1,15 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## 1.2.8（2026-07-17）
+- **导出图片格式可配置**：`toTempFilePath` / `saveToAlbum` 支持 `fileType: 'png' | 'jpg' | 'webp'` 与 `quality` 参数
+- 新增 `RenderPosterOptions.exportOptions` 字段：渲染时可预设默认导出格式
+- 新增 `ImageFileType` 类型导出
 
-## 1.3.0（2026-06-05）
 
-### 新增
+## 1.2.7（2026-06-07）
 
-- 新增 `barcode` 元素：内置一维条码生成，支持以下格式
-  - **EAN-13**：12 位自动计算 mod-10 校验位；13 位自动校验末位
-  - **Code-128**（Code Set B）：支持 ASCII 32–127
-- 新增配套 CSS 属性 `showText` / `textSize` / `textColor` / `textMargin`
-- 新增 `format` 节点属性：`'EAN13' | 'CODE128'`
-- 新增 `BarcodeNode` / `BarcodeCss` 类型导出
+### 修复BUG
 
 ## 1.2.6（2026-06-06）
 

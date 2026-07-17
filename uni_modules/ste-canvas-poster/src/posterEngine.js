@@ -179,8 +179,8 @@ export function loadImage(canvas, src) {
           success: (res) => done(res.width, res.height),
           fail: () => {
             if (typeof uni.getFileSystemManager !== "function") return fallback();
-			const fileSystem = uni.getFileSystemManager();
-			if(!fileSystem) return fallback();
+            const fileSystem = uni.getFileSystemManager();
+            if (!fileSystem) return fallback();
             const base64 = normalizedSrc.replace(/^data:image\/\w+;base64,/, "");
             const tmp = `_doc/uniapp_temp_poster_${Date.now()}.png`;
             fileSystem.writeFile({
@@ -227,7 +227,7 @@ export function loadImage(canvas, src) {
 // ─────────────────────────────────────────────
 
 export class PosterEngine {
-  constructor({ canvas, schema, data = {}, dpr }) {
+  constructor({ canvas, schema, data = {}, dpr, exportOptions = {} }) {
     if (!canvas) throw new Error("[PosterEngine] canvas 节点不能为空");
     if (!schema) throw new Error("[PosterEngine] schema 不能为空");
 
@@ -236,6 +236,9 @@ export class PosterEngine {
     this.schema = schema;
     this.data = data;
     this.dpr = dpr || uni.getSystemInfoSync().pixelRatio || 2;
+    // 公共属性：默认导出格式，允许外部读取
+    const { fileType = "png", quality = 1 } = exportOptions || {};
+    this.exportOptions = { fileType, quality };
     this._imgCache = new Map();
     this._tplCache = new Map();
     this._splitCache = new Map();
@@ -317,7 +320,8 @@ export class PosterEngine {
   toTempFilePath(options = {}) {
     this._checkDestroyed();
 
-    const { fileType = "png", quality = 1 } = options;
+    // 合并：实例级 exportOptions 默认值 + 调用时 options 覆盖
+    const { fileType = this.exportOptions.fileType, quality = this.exportOptions.quality } = options;
     const canvasWidth = this.canvas.width;
     const canvasHeight = this.canvas.height;
     const dpr = this.dpr;
@@ -363,10 +367,10 @@ export class PosterEngine {
     });
   }
 
-  async saveToAlbum() {
+  async saveToAlbum(options = {}) {
     this._checkDestroyed();
 
-    const tempPath = await this.toTempFilePath();
+    const tempPath = await this.toTempFilePath(options);
     return new Promise((resolve, reject) => {
       uni.saveImageToPhotosAlbum({
         filePath: tempPath,
@@ -438,7 +442,7 @@ export class PosterEngine {
         try {
           const img = await this._loadImageCached(resolvedSrc);
           css.height = Math.ceil((img.height / img.width) * resolvedWidth);
-        } catch (e) {}
+        } catch (e) { }
       }
     }
 
@@ -449,7 +453,7 @@ export class PosterEngine {
           const img = await this._loadImageCached(resolvedSrc);
           css.width = Math.ceil((img.width / img.height) * (css.height || 0));
           resolvedWidth = css.width;
-        } catch (e) {}
+        } catch (e) { }
       }
     }
 
@@ -624,7 +628,7 @@ export class PosterEngine {
           return;
         }
         let currentLine = "";
-        for (let i = 0; i < segment.length; ) {
+        for (let i = 0; i < segment.length;) {
           const remaining = segment.substring(i);
           const fitLen = binarySearchSplit(ctx, remaining, textWidth);
           if (fitLen === 0) {
@@ -807,7 +811,7 @@ export class PosterEngine {
       if (m1.fontBoundingBoxAscent && m1.fontBoundingBoxDescent) {
         return { ascent: m1.fontBoundingBoxAscent, descent: m1.fontBoundingBoxDescent };
       }
-    } catch (e) {}
+    } catch (e) { }
     try {
       const savedBaseline = ctx.textBaseline;
       ctx.textBaseline = "alphabetic";
@@ -816,7 +820,7 @@ export class PosterEngine {
       if (m2.actualBoundingBoxAscent || m2.actualBoundingBoxDescent) {
         return { ascent: m2.actualBoundingBoxAscent || fallback.ascent, descent: m2.actualBoundingBoxDescent || fallback.descent };
       }
-    } catch (e) {}
+    } catch (e) { }
     return fallback;
   }
 

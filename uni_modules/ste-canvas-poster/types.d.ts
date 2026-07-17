@@ -91,6 +91,20 @@ export interface QrcodeCss extends CommonCss {
   backgroundColor?: BackgroundValue;
 }
 
+export interface BarcodeCss extends CommonCss {
+  color?: string;
+  background?: BackgroundValue;
+  backgroundColor?: BackgroundValue;
+  /** 是否在条码下方显示文本内容（EAN-13 默认 true，Code-128 默认 false） */
+  showText?: boolean;
+  /** 文本颜色，默认同 color */
+  textColor?: string;
+  /** 文本字号（px），默认 18 */
+  textSize?: number;
+  /** 文本与条码的间距（px），默认 4 */
+  textMargin?: number;
+}
+
 // ─────────────────────────────────────────────
 // Flex 子元素 margin
 // ─────────────────────────────────────────────
@@ -172,14 +186,24 @@ export interface RenderPosterOptions {
   vm: Record<string, any>;
   dpr?: number;
   useRpx?: boolean;
+  /**
+   * 导出图片时的格式与质量（透传到 toTempFilePath / saveToAlbum）
+   * 不传时使用默认（png / quality=1）
+   */
+  exportOptions?: ToTempFilePathOptions;
 }
 
 // ─────────────────────────────────────────────
 // toTempFilePath 选项
 // ─────────────────────────────────────────────
 
+/** 支持的图片格式：png（无损）/ jpg（有损）/ webp（有损，体积更小） */
+export type ImageFileType = "png" | "jpg" | "webp";
+
 export interface ToTempFilePathOptions {
-  fileType?: "png" | "jpg";
+  /** 图片格式，默认 "png"。jpg/webp 时 quality 生效 */
+  fileType?: ImageFileType;
+  /** 图片质量 0–1，仅 jpg/webp 有效，png 无效。默认 1 */
   quality?: number;
 }
 
@@ -193,14 +217,22 @@ export declare class PosterEngine {
   schema: PosterSchema;
   data: TemplateData;
   dpr: number;
+  /** 默认导出格式与质量，由 renderPoster(options.exportOptions) 传入 */
+  exportOptions: ToTempFilePathOptions;
 
-  constructor(options: { canvas: any; schema: PosterSchema; data?: TemplateData; dpr?: number });
+  constructor(options: {
+    canvas: any;
+    schema: PosterSchema;
+    data?: TemplateData;
+    dpr?: number;
+    exportOptions?: ToTempFilePathOptions;
+  });
 
   render(): Promise<void>;
 
   toTempFilePath(options?: ToTempFilePathOptions): Promise<string>;
 
-  saveToAlbum(): Promise<string>;
+  saveToAlbum(options?: ToTempFilePathOptions): Promise<string>;
 
   destroy(): void;
 }

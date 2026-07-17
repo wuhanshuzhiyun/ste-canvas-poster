@@ -3,8 +3,7 @@
 		<view class="test-selector">
 			<view class="selector-title">选择测试项</view>
 			<view class="selector-list">
-				<view v-for="(item, index) in testCases" :key="index" class="selector-item"
-					:class="{ active: currentTest === index }" @click="selectTest(index)">
+				<view v-for="(item, index) in testCases" :key="index" class="selector-item" :class="{ active: currentTest === index }" @click="selectTest(index)">
 					{{ item.name }}
 				</view>
 			</view>
@@ -19,8 +18,7 @@
 		</view>
 
 		<view class="canvas-wrapper" :style="[canvasSize]">
-			<canvas id="testCanvas" canvas-id="testCanvas" type="2d" style="width: 100%; height: 100%"
-				class="test-canvas"></canvas>
+			<canvas id="testCanvas" canvas-id="testCanvas" type="2d" style="width: 100%; height: 100%" class="test-canvas"></canvas>
 		</view>
 	</view>
 </template>
@@ -437,7 +435,12 @@ const testCases: TestCase[] = [
 					css: { left: 40, top: 40, width: 630, height: 320, backgroundColor: "#FFFFFF", borderRadius: 16 },
 					views: [
 						{ type: "text", text: "EAN-13（自动补校验位）", css: { left: 16, top: 16, fontSize: 24, color: "#6C757D", fontWeight: "bold" } },
-					{ type: "barcode", format: "EAN13", text: "690102800123", css: { left: 40, top: 56, width: 550, height: 220, backgroundColor: "#FFFFFF", color: "#000000" } },
+						{
+							type: "barcode",
+							format: "EAN13",
+							text: "690102800123",
+							css: { left: 40, top: 56, width: 550, height: 220, backgroundColor: "#FFFFFF", color: "#000000" },
+						},
 					],
 				},
 				{
@@ -453,7 +456,12 @@ const testCases: TestCase[] = [
 					css: { left: 40, top: 760, width: 630, height: 320, backgroundColor: "#FFFFFF", borderRadius: 16 },
 					views: [
 						{ type: "text", text: "Code-128（ASCII）", css: { left: 16, top: 16, fontSize: 24, color: "#6C757D", fontWeight: "bold" } },
-						{ type: "barcode", format: "CODE128", text: "{{sku}}", css: { left: 40, top: 56, width: 550, height: 220, backgroundColor: "#FFFFFF", color: "#000000", showText: true, textSize: 22, textColor: "#E74C3C" } },
+						{
+							type: "barcode",
+							format: "CODE128",
+							text: "{{sku}}",
+							css: { left: 40, top: 56, width: 550, height: 220, backgroundColor: "#FFFFFF", color: "#000000", showText: true, textSize: 22, textColor: "#E74C3C" },
+						},
 					],
 				},
 			],

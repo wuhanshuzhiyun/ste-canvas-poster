@@ -28,6 +28,7 @@ export type {
   BarcodeNode,
   RenderPosterOptions,
   ToTempFilePathOptions,
+  ImageFileType,
   CommonCss,
   ViewCss,
   ImageCss,
