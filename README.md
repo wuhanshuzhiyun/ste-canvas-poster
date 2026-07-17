@@ -10,6 +10,7 @@
 - **Flex 布局** — view 容器支持 `display: 'flex'` 及子元素 margin、baseline 对齐
 - **自动高度** — text 元素可省略 height，引擎根据内容自动计算
 - **内置二维码** — qrcode 类型直接生成二维码，无需额外依赖
+- **内置条码** — barcode 类型支持 EAN-13 / Code-128，无需额外依赖
 - **TypeScript 支持** — 完整类型声明，开发时自动补全
 
 ## 安装
@@ -133,14 +134,15 @@ computed: {
 function renderPoster(options: RenderPosterOptions): Promise<PosterEngine>;
 ```
 
-| 参数       | 类型                  | 必填 | 默认值   | 说明                                  |
-| ---------- | --------------------- | ---- | -------- | ------------------------------------- |
-| `schema`   | `PosterSchema`        | 是   | -        | 海报结构描述                          |
-| `data`     | `TemplateData`        | 否   | `{}`     | 模板变量数据                          |
-| `selector` | `string`              | 是   | -        | Canvas 选择器，如 `'#myCanvas'`       |
-| `vm`       | `Record<string, any>` | 是   | -        | Vue 组件实例                          |
-| `dpr`      | `number`              | 否   | 自动获取 | 像素比                                |
-| `useRpx`   | `boolean`             | 否   | `true`   | 是否将 schema 数值视为 rpx 并自动转换 |
+| 参数            | 类型                  | 必填 | 默认值   | 说明                                  |
+| --------------- | --------------------- | ---- | -------- | ------------------------------------- |
+| `schema`        | `PosterSchema`        | 是   | -        | 海报结构描述                          |
+| `data`          | `TemplateData`        | 否   | `{}`     | 模板变量数据                          |
+| `selector`      | `string`              | 是   | -        | Canvas 选择器，如 `'#myCanvas'`       |
+| `vm`            | `Record<string, any>` | 是   | -        | Vue 组件实例                          |
+| `dpr`           | `number`              | 否   | 自动获取 | 像素比                                |
+| `useRpx`        | `boolean`             | 否   | `true`   | 是否将 schema 数值视为 rpx 并自动转换 |
+| `exportOptions` | `ToTempFilePathOptions` | 否 | `{}`     | 默认导出格式与质量，透传到 saveToAlbum |
 
 **返回值**：`Promise<PosterEngine>` — 引擎实例
 
@@ -148,13 +150,18 @@ function renderPoster(options: RenderPosterOptions): Promise<PosterEngine>;
 
 渲染完成后返回的引擎实例，提供以下方法：
 
-#### engine.saveToAlbum()
+#### engine.saveToAlbum(options?)
 
 导出图片并保存到系统相册。
 
 ```typescript
-saveToAlbum(): Promise<string>
+saveToAlbum(options?: ToTempFilePathOptions): Promise<string>
 ```
+
+| 参数       | 类型                            | 默认值  | 说明                                       |
+| ---------- | ------------------------------- | ------- | ------------------------------------------ |
+| `fileType` | `'png' \| 'jpg' \| 'webp'`     | `'png'` | 导出格式                                   |
+| `quality`  | `number`                        | `1`     | 图片质量 0-1，仅 jpg/webp 有效，png 无效    |
 
 **返回值**：临时文件路径
 
@@ -166,10 +173,10 @@ saveToAlbum(): Promise<string>
 toTempFilePath(options?: ToTempFilePathOptions): Promise<string>
 ```
 
-| 参数       | 类型             | 默认值  | 说明                         |
-| ---------- | ---------------- | ------- | ---------------------------- |
-| `fileType` | `'png' \| 'jpg'` | `'png'` | 导出格式                     |
-| `quality`  | `number`         | `1`     | 图片质量（0-1），仅 jpg 有效 |
+| 参数       | 类型                            | 默认值  | 说明                         |
+| ---------- | ------------------------------- | ------- | ---------------------------- |
+| `fileType` | `'png' \| 'jpg' \| 'webp'`     | `'png'` | 导出格式                     |
+| `quality`  | `number`                        | `1`     | 图片质量（0-1），仅 jpg/webp 有效 |
 
 **返回值**：临时文件路径
 
@@ -341,13 +348,13 @@ background: "linear-gradient(180deg, #EE3C3C 0%, #FFFFFF 100%)";
 
 **objectFit 模式说明**：
 
-| 值          | 行为                                        |
-| ----------- | ------------------------------------------- |
-| `fill`      | 拉伸填满指定宽高，可能变形                  |
-| `cover`     | 等比缩放覆盖区域，裁剪超出部分（居中裁剪）  |
-| `contain`   | 等比缩放适应区域，保留完整图片（居中放置）  |
-| `widthFix`  | 宽度固定为 `width`，高度按原图比例自动计算  |
-| `heightFix` | 高度固定为 `height`，宽度按原图比例自动计算 |
+| 值           | 行为                                                |
+| ------------ | --------------------------------------------------- |
+| `fill`       | 拉伸填满指定宽高，可能变形                          |
+| `cover`      | 等比缩放覆盖区域，裁剪超出部分（居中裁剪）         |
+| `contain`    | 等比缩放适应区域，保留完整图片（居中放置）          |
+| `widthFix`   | 宽度固定为 `width`，高度按原图比例自动计算           |
+| `heightFix`  | 高度固定为 `height`，宽度按原图比例自动计算          |
 
 #### text — 文本
 
@@ -396,6 +403,46 @@ background: "linear-gradient(180deg, #EE3C3C 0%, #FFFFFF 100%)";
 }
 ```
 
+#### barcode — 条码
+
+生成并绘制一维条码（EAN-13 / Code-128），内容支持模板变量。无需引入任何第三方库。
+
+```javascript
+// EAN-13：可传 12 位（自动补校验位）或 13 位（自动校验）
+{
+  type: 'barcode',
+  format: 'EAN13',
+  text: '6901028001234',
+  css: {
+    left: 100,
+    top: 600,
+    width: 550,
+    height: 200,
+    color: '#000000',
+    background: '#FFFFFF',
+    showText: true,         // EAN13 默认 true
+    textSize: 18,
+    textColor: '#000000'
+  }
+}
+
+// Code-128：支持 ASCII 32–127
+{
+  type: 'barcode',
+  format: 'CODE128',
+  text: 'SKU-2026-A001',
+  css: {
+    left: 100,
+    top: 850,
+    width: 550,
+    height: 120,
+    color: '#1f6feb',
+    showText: false,        // Code-128 默认 false
+    textSize: 16
+  }
+}
+```
+
 ---
 
 ## CSS 属性参考
@@ -440,8 +487,8 @@ background: "linear-gradient(180deg, #EE3C3C 0%, #FFFFFF 100%)";
 
 ### image 属性
 
-| 属性        | 类型                                                          | 默认值   | 说明     |
-| ----------- | ------------------------------------------------------------- | -------- | -------- |
+| 属性        | 类型                                                | 默认值   | 说明     |
+| ----------- | --------------------------------------------------- | -------- | -------- |
 | `objectFit` | `'fill' \| 'cover' \| 'contain' \| 'widthFix' \| 'heightFix'` | `'fill'` | 缩放模式 |
 
 ### text 属性
@@ -468,6 +515,21 @@ background: "linear-gradient(180deg, #EE3C3C 0%, #FFFFFF 100%)";
 | ------------ | -------- | ----------- | ------ |
 | `color`      | `string` | `'#000000'` | 前景色 |
 | `background` | `string` | `'#FFFFFF'` | 背景色 |
+
+### barcode 属性
+
+| 属性         | 类型      | 默认值               | 说明                                       |
+| ------------ | --------- | -------------------- | ------------------------------------------ |
+| `format`     | `'EAN13' \| 'CODE128'` | `'EAN13'`  | 条码格式                                   |
+| `color`      | `string`  | `'#000000'`          | 条码前景色（条形颜色）                     |
+| `background` | `string`  | `'#FFFFFF'`          | 背景色                                     |
+| `showText`   | `boolean` | EAN13 `true` / CODE128 `false` | 是否在底部显示条码内容文本     |
+| `textSize`   | `number`  | `18`                 | 文本字号（px）                             |
+| `textColor`  | `string`  | 同 `color`           | 文本颜色                                   |
+| `textMargin` | `number`  | `4`                  | 文本与条形之间的间距                        |
+
+> **校验**：EAN-13 接收 12 位数字时自动计算 mod-10 校验位；接收 13 位时会校验末位，不匹配抛错。
+> **字符集**：Code-128 使用 Code Set B（ASCII 32–127 全部可打印字符）。
 
 ### Flex 子元素 margin
 
