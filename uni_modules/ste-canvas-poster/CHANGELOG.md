@@ -1,6 +1,10 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+
+## 1.2.9（2026-07-20）
+- `render`在APP端等待渲染完成
+
 ## 1.2.8（2026-07-17）
 - **导出图片格式可配置**：`toTempFilePath` / `saveToAlbum` 支持 `fileType: 'png' | 'jpg' | 'webp'` 与 `quality` 参数
 - 新增 `RenderPosterOptions.exportOptions` 字段：渲染时可预设默认导出格式

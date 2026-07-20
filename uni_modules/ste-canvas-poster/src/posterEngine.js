@@ -251,6 +251,11 @@ export class PosterEngine {
   // 公共 API
   // ─────────────────────────────────────────────
 
+  /**
+   * 执行 Canvas 渲染
+   * @description 按顺序绘制 schema 中的所有视图节点，支持背景图/圆角/条件编译
+   * @returns {Promise<void>} 渲染完成后 resolve
+   */
   async render() {
     this._checkDestroyed();
     this._tplCache.clear();
@@ -310,10 +315,22 @@ export class PosterEngine {
 
     ctx.restore();
 
+    // APP-PLUS 平台需要调用 ctx.draw() 并等待回调
     // #ifdef APP-PLUS
-    if (this.canvas._canvasId) {
-      ctx.draw();
-    }
+    await new Promise((resolve, reject) => {
+      if (this.canvas._canvasId) {
+        ctx.draw(false, (res) => {
+          if (res && res.errMsg && res.errMsg.includes("ok")) {
+            resolve();
+          } else {
+            reject(new Error("ctx.draw 回调失败: " + (res?.errMsg || "unknown")));
+          }
+        });
+      } else {
+        // 无 canvasId 时直接 resolve（可能是 mock 环境或自定义 canvas）
+        resolve();
+      }
+    });
     // #endif
   }
 
