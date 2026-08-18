@@ -53,8 +53,23 @@ let _windowWidth = null;
 
 export function getWindowWidth() {
   if (_windowWidth === null) {
-    const current = uni.getSystemInfoSync().windowWidth;
-    _windowWidth = current;
+    // #ifdef H5
+    // H5 下 uni.getSystemInfoSync().windowWidth 返回的是“物理屏幕宽/设计宽”，
+    // 与 uni-app 的 CSS rpx 基准（真实视口宽）不一致，会导致 transformSchemaRpx
+    // 算出的逻辑尺寸与画布实际显示尺寸差一个倍数，整张海报被成比例放大溢出。
+    // 故 H5 直接用 window.innerWidth 取“真实视口宽”作为 rpx 换算基准，
+    // 使 710rpx 转换出的逻辑宽 == 画布外层 710rpx 的真实显示宽，尺寸自洽。
+    const vw =
+      typeof window !== "undefined" && window.innerWidth
+        ? window.innerWidth
+        : typeof document !== "undefined" && document.documentElement
+          ? document.documentElement.clientWidth
+          : 0;
+    _windowWidth = vw || uni.getSystemInfoSync().windowWidth;
+    // #endif
+    // #ifndef H5
+    _windowWidth = uni.getSystemInfoSync().windowWidth;
+    // #endif
   }
   return _windowWidth || 375;
 }

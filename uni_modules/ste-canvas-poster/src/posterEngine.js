@@ -212,6 +212,20 @@ export function loadImage(canvas, src) {
     }
     // #endif
 
+    // #ifdef H5
+    const img = new Image();
+    // 跨域图片需服务端允许 CORS，否则 canvas 被污染、toDataURL 导出会抛安全错误
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = (e) => {
+      console.error("[PosterEngine] 图片加载失败:", e);
+      reject(new Error(`图片加载失败: ${e}`));
+    };
+    img.src = normalizedSrc;
+    // #endif
+
+    // #ifndef H5
+    // #ifndef APP-PLUS
     const img = canvas.createImage();
     img.onload = () => resolve(img);
     img.onerror = (e) => {
@@ -219,6 +233,8 @@ export function loadImage(canvas, src) {
       reject(new Error(`图片加载失败: ${e}`));
     };
     img.src = normalizedSrc;
+    // #endif
+    // #endif
   });
 }
 
@@ -236,6 +252,11 @@ export class PosterEngine {
     this.schema = schema;
     this.data = data;
     this.dpr = dpr || uni.getSystemInfoSync().pixelRatio || 2;
+    // #ifdef H5
+    // H5 端强制 dpr=1：buffer 直接等于 CSS 逻辑尺寸，导出图尺寸与屏幕所见 1:1，
+    // 避免高 dpr 屏下 buffer 物理像素被 ×dpr 放大，造成“buffer 比窗口大”的误判。
+    this.dpr = 1;
+    // #endif
     // 公共属性：默认导出格式，允许外部读取
     const { fileType = "png", quality = 1 } = exportOptions || {};
     this.exportOptions = { fileType, quality };
@@ -268,9 +289,55 @@ export class PosterEngine {
     this._logicalWidth = width;
     this._logicalHeight = height;
 
-    // #ifdef MP-WEIXIN
+    // #ifdef MP-WEIXIN || MP-QQ || MP-TOUTIAO || MP-ALIPAY
     this.canvas.width = Math.round(width * dpr);
     this.canvas.height = Math.round(height * dpr);
+    // #endif
+
+    // #ifdef H5
+    // H5：以画布“实际显示尺寸”为基准，彻底摆脱 getWindowWidth / rpx 基准不一致导致的放大溢出。
+    // 内层真 <canvas> 在取节点时已补 width:100%;height:100%；若 rect 取到 0，则回退测量父容器尺寸。
+    const _rect = this.canvas.getBoundingClientRect();
+    let _displayW = _rect.width;
+    let _displayH = _rect.height;
+    if (!_displayW || !_displayH) {
+      const _pr = this.canvas.parentElement && this.canvas.parentElement.getBoundingClientRect();
+      if (_pr) {
+        _displayW = _displayW || _pr.width;
+        _displayH = _displayH || _pr.height;
+      }
+    }
+    _displayW = _displayW || width;
+    _displayH = _displayH || height;
+    this.canvas.width = Math.round(_displayW * dpr);
+    this.canvas.height = Math.round(_displayH * dpr);
+    // #ifdef H5
+    const _renderCs = typeof window !== "undefined" && window.getComputedStyle ? window.getComputedStyle(this.canvas) : null;
+    const _renderParent = this.canvas.parentElement;
+    const _renderParentCs = _renderParent && typeof window !== "undefined" && window.getComputedStyle ? window.getComputedStyle(_renderParent) : null;
+    console.error("[POSTER-DIAG] 3.render:", {
+      dpr,
+      logicalW: width,
+      logicalH: height,
+      displayW: Math.round(_displayW),
+      displayH: Math.round(_displayH),
+      bufferW: this.canvas.width,
+      bufferH: this.canvas.height,
+      fit: width > 0 ? +(_displayW / width).toFixed(4) : 1,
+      innerWidth: typeof window !== "undefined" ? window.innerWidth : null,
+      innerHeight: typeof window !== "undefined" ? window.innerHeight : null,
+      canvasClient: `${this.canvas.clientWidth},${this.canvas.clientHeight}`,
+      canvasOffset: `${this.canvas.offsetWidth},${this.canvas.offsetHeight}`,
+      canvasScroll: `${this.canvas.scrollWidth},${this.canvas.scrollHeight}`,
+      canvasComputed: _renderCs
+        ? { w: _renderCs.width, h: _renderCs.height, maxH: _renderCs.maxHeight, maxW: _renderCs.maxWidth, disp: _renderCs.display }
+        : null,
+      parentClient: _renderParent ? `${_renderParent.clientWidth},${_renderParent.clientHeight}` : null,
+      parentComputed: _renderParentCs
+        ? { w: _renderParentCs.width, h: _renderParentCs.height, maxH: _renderParentCs.maxHeight, disp: _renderParentCs.display }
+        : null,
+    });
+    // #endif
     // #endif
 
     // #ifdef APP-PLUS
@@ -280,11 +347,20 @@ export class PosterEngine {
 
     const ctx = this.ctx;
 
-    // #ifdef MP-WEIXIN
+    ctx.save();
+
+    // #ifdef MP-WEIXIN || MP-QQ || MP-TOUTIAO || MP-ALIPAY
     ctx.scale(dpr, dpr);
     // #endif
 
-    ctx.save();
+    // #ifdef H5
+    // 把逻辑坐标系（width×height）等比缩放到实际显示尺寸，海报始终铺满卡片（任意 dpr / rpx 基准都正确）
+    console.error(`[POSTER-DIAG] 3.render-scale-before: canvas.attrs=${this.canvas.width}x${this.canvas.height} canvas.css=${this.canvas.clientWidth}x${this.canvas.clientHeight}`);
+    const _fit = width > 0 ? _displayW / width : 1;
+    ctx.scale(dpr * _fit, dpr * _fit);
+    this._renderScale = dpr * _fit; // 1 逻辑px = 多少设备px（供逐节点绘制日志使用）
+    console.error(`[POSTER-DIAG] 3.render-scale-after: ctx.canvas.attrs=${ctx.canvas.width}x${ctx.canvas.height}`);
+    // #endif
 
     if (borderRadius) {
       roundRectPath(ctx, 0, 0, width, height, borderRadius);
@@ -309,11 +385,104 @@ export class PosterEngine {
 
     await this._preloadAllImages(views);
 
+    // #ifdef H5
+    this._drawLog = true;
+    this._drawLogIdx = 1;
+    this._overflowNodes = [];
+    // #endif
+
     for (const node of views) {
       await this._drawNode(node, 0, 0);
     }
 
+    // #ifdef H5
+    // 绘制完毕汇总：直接告诉用户“有没有溢出、是哪几个节点”，避免肉眼误判。
+    if (this._drawLog) {
+      console.error(
+        `[POSTER-DRAW-SUMMARY] total=${this._drawLogIdx - 1} ` +
+          `overflowCount=${this._overflowNodes.length} ` +
+          `overflowIndices=${JSON.stringify(this._overflowNodes)} ` +
+          `canvas=${this._logicalWidth}x${this._logicalHeight} ` +
+          `buffer=${this.canvas.width}x${this.canvas.height}`
+      );
+    }
+    // #endif
+
+    // #ifdef H5
+    console.error(`[POSTER-DIAG] 3.render-done: canvas.attrs=${this.canvas.width}x${this.canvas.height} canvas.css=${this.canvas.clientWidth}x${this.canvas.clientHeight}`);
+    // 延迟检查：500ms 后再读一次 canvas.width/height，确认是否被 uni-app 异步重置
+    const _checkCanvas = this.canvas;
+    setTimeout(() => {
+      console.error(`[POSTER-DIAG] 7.delayed-check(500ms): canvas.attrs=${_checkCanvas.width}x${_checkCanvas.height} canvas.css=${_checkCanvas.clientWidth}x${_checkCanvas.clientHeight}`);
+    }, 500);
+    // #endif
+
+    // #ifdef H5
+    // 地面真相诊断：在逻辑画布的四角与底边画醒目的品红标记，
+    // 并绘制 0/25/50/75/100% 水平扫描线 + 百分比文字，
+    // 一眼即可判断“截图到底截到了画布的百分之多少”。
+    if (this._drawLog) {
+      ctx.save();
+      ctx.strokeStyle = "#FF00FF";
+      ctx.lineWidth = 4;
+      ctx.strokeRect(2, 2, width - 4, height - 4);
+      ctx.fillStyle = "#FF00FF";
+      ctx.beginPath();
+      ctx.arc(width - 14, height - 14, 10, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(width / 2, height - 14, 10, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(14, height - 14, 10, 0, Math.PI * 2);
+      ctx.fill();
+      // 百分比扫描线
+      const _scanColors = ["#FF00FF", "#00FF00", "#0000FF", "#FFFF00", "#00FFFF"];
+      const _scanRatios = [0, 0.25, 0.5, 0.75, 1];
+      _scanRatios.forEach((r, i) => {
+        const y = Math.round(height * r);
+        ctx.strokeStyle = _scanColors[i];
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+        ctx.fillStyle = _scanColors[i];
+        ctx.font = "bold 24px sans-serif";
+        ctx.textBaseline = "top";
+        ctx.fillText(`${Math.round(r * 100)}%`, 6, y + 4);
+      });
+      // 注：buffer 内容完整性检查已移至 toTempFilePath 的 4.export-content
+      // （导出图 = canvas buffer 完整副本，用 Image 加载后读底部像素，比 getImageData 坐标更可靠）
+      ctx.restore();
+      console.error(`[POSTER-DIAG] 5.visual-marker: 已画扫描线(0/25/50/75/100%)，请截图看截到哪条线。logicCanvas=${width}x${height}`);
+      console.error(`[POSTER-DIAG] 8.export-check: 请立即点击“导出为图片”，若导出的图片是 ${this.canvas.width}x${this.canvas.height} 且包含完整扫描线，则绘制完整，问题在显示层/截图范围。`);
+    }
+    // #endif
+
     ctx.restore();
+
+    // #ifdef H5
+    // 视口诊断：判断 canvas 是否因为“超出视口底部”而被用户误认为“只显示一半”。
+    if (this._drawLog && typeof window !== "undefined" && this.canvas.getBoundingClientRect) {
+      const _vRect = this.canvas.getBoundingClientRect();
+      const _docEl = document.documentElement;
+      const _clientH = _docEl ? _docEl.clientHeight : 0;
+      const _innerH = window.innerHeight || _clientH;
+      const _scrollY = window.scrollY || window.pageYOffset || 0;
+      const _docTop = _vRect.top + _scrollY;
+      console.error(
+        `[POSTER-DIAG] 6.viewport: ` +
+          `innerHeight=${_innerH} clientHeight=${_clientH} ` +
+          `canvasTop=${Math.round(_vRect.top)} canvasBottom=${Math.round(_vRect.bottom)} ` +
+          `docTop=${Math.round(_docTop)} scrollY=${Math.round(_scrollY)} ` +
+          `canvasCssH=${Math.round(_vRect.height)} ` +
+          `visibleH=${Math.max(0, Math.min(_vRect.bottom, _clientH) - _vRect.top)} ` +
+          `visibleRatio=${_vRect.height > 0 ? +(Math.max(0, Math.min(_vRect.bottom, _clientH) - _vRect.top) / _vRect.height).toFixed(2) : 0}` +
+          ` dpr=${window.devicePixelRatio || 1}`
+      );
+    }
+    // #endif
 
     // APP-PLUS 平台需要调用 ctx.draw() 并等待回调
     // #ifdef APP-PLUS
@@ -344,6 +513,47 @@ export class PosterEngine {
     const dpr = this.dpr;
 
     return new Promise((resolve, reject) => {
+      // #ifdef H5
+      try {
+        const mime = fileType === "jpg" ? "jpeg" : fileType;
+        const dataUrl = this.canvas.toDataURL(`image/${mime}`, quality);
+        // 临时诊断：导出图片真实像素尺寸 + 内容完整性（区分“绘制不完整”还是“显示/截图被截断”）
+        if (typeof window !== "undefined" && window.Image && typeof document !== "undefined") {
+          const img = new window.Image();
+          img.onload = () => {
+            const _w = img.width, _h = img.height;
+            console.error(`[POSTER-DIAG] 4.export: dataURL size=${_w}x${_h} canvasBuffer=${this.canvas.width}x${this.canvas.height}`);
+            // 铁证：把导出图绘到临时 canvas，读【底部 12 行】像素，统计青色(100%扫描线)占比。
+            // 导出图 = canvas buffer 完整副本，受屏幕显示/截图方式影响最小，能直接判定绘制是否完整。
+            try {
+              const _tmp = document.createElement("canvas");
+              _tmp.width = _w;
+              _tmp.height = _h;
+              const _tctx = _tmp.getContext("2d");
+              _tctx.drawImage(img, 0, 0);
+              const _sh = Math.min(12, _h);
+              const _d = _tctx.getImageData(0, _h - _sh, _w, _sh).data;
+              const _tot = _w * _sh;
+              let _cyan = 0;
+              for (let i = 0; i < _d.length; i += 4) {
+                if (_d[i] < 80 && _d[i + 1] > 180 && _d[i + 2] > 180 && _d[i + 3] > 180) _cyan++;
+              }
+              const _pct = ((_cyan / _tot) * 100).toFixed(1);
+              console.error(`[POSTER-DIAG] 4.export-content: img=${_w}x${_h} bottomCyan=${_pct}% => ${_cyan > 0 ? "底部扫描线已绘入 buffer，绘制完整，问题在显示层/截图范围" : "底部无青色，绘制确实不完整（需深挖绘制逻辑）"}`);
+            } catch (e) {
+              console.error(`[POSTER-DIAG] 4.export-content: 读取失败`, e);
+            }
+          };
+          img.src = dataUrl;
+        }
+        resolve(dataUrl);
+        return;
+      } catch (e) {
+        reject(e);
+        return;
+      }
+      // #endif
+
       const canvasOptions = {
         fileType,
         quality,
@@ -388,6 +598,22 @@ export class PosterEngine {
     this._checkDestroyed();
 
     const tempPath = await this.toTempFilePath(options);
+    // #ifdef H5
+    return new Promise((resolve, reject) => {
+      try {
+        const a = document.createElement("a");
+        a.href = tempPath;
+        a.download = `poster_${Date.now()}.${this.exportOptions.fileType}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        resolve(tempPath);
+      } catch (e) {
+        reject(e);
+      }
+    });
+    // #endif
+
     return new Promise((resolve, reject) => {
       uni.saveImageToPhotosAlbum({
         filePath: tempPath,
@@ -494,6 +720,37 @@ export class PosterEngine {
 
     const ctx = this.ctx;
     ctx.save();
+
+    // #ifdef H5
+    // 逐节点绘制日志：打印每个元素在【逻辑坐标系】下的盒子（x/y/w/h，已含 rpx→px 转换结果），
+    // 并自动判定是否超出画布边界：right = x+w 是否 > 画布宽；bottom = y+h 是否 > 画布高。
+    // 一旦超出即打 ⚠️OVERFLOW，并把序号记入 _overflowNodes，供 render 末尾汇总。
+    if (this._drawLog) {
+      const _right = x + resolvedWidth;
+      const _bottom = y + resolvedHeight;
+      const _rs = this._renderScale || 1;
+      // 元素在 canvas buffer 中的【物理像素】盒：逻辑坐标 × renderScale（这是真正的绘制落点）
+      const _bufRight = _right * _rs;
+      const _bufBottom = _bottom * _rs;
+      const _bufW = this.canvas.width;
+      const _bufH = this.canvas.height;
+      // 双重校验：既比逻辑画布，也比 buffer 物理边界（之前只比逻辑坐标，漏掉了物理像素越界）
+      const _ovX = _right > this._logicalWidth + 0.5 || _bufRight > _bufW + 0.5;
+      const _ovY = _bottom > this._logicalHeight + 0.5 || _bufBottom > _bufH + 0.5;
+      const _flag = _ovX || _ovY ? " ⚠️OVERFLOW" : "";
+      if (_ovX || _ovY) this._overflowNodes.push(this._drawLogIdx);
+      console.error(
+        `[POSTER-DRAW] #${this._drawLogIdx++} type=${type} ` +
+          `box(logical)={x:${+x.toFixed(1)},y:${+y.toFixed(1)},w:${+resolvedWidth.toFixed(1)},h:${+resolvedHeight.toFixed(1)}} ` +
+          `right:${+_right.toFixed(1)} bottom:${+_bottom.toFixed(1)} ` +
+          `canvas=${this._logicalWidth}x${this._logicalHeight} ` +
+          `buffer=${_bufW}x${_bufH} ` +
+          `bufRight:${+_bufRight.toFixed(1)} bufBottom:${+_bufBottom.toFixed(1)} ` +
+          `scale=${_rs.toFixed(2)}` +
+          _flag
+      );
+    }
+    // #endif
 
     if (css.opacity != null && css.opacity !== 1) {
       ctx.globalAlpha = css.opacity;
@@ -603,11 +860,11 @@ export class PosterEngine {
         const dx = x + (w - dw) / 2;
         const dy = y + (h - dh) / 2;
         ctx.drawImage(imgSrc, dx, dy, dw, dh);
-      } else if (objectFit === "widthFix") {
+      } else if (hasSize && objectFit === "widthFix") {
         const dw = w;
         const dh = (img.height / img.width) * w;
         ctx.drawImage(imgSrc, x, y, dw, dh);
-      } else if (objectFit === "heightFix") {
+      } else if (hasSize && objectFit === "heightFix") {
         const dh = h;
         const dw = (img.width / img.height) * h;
         ctx.drawImage(imgSrc, x, y, dw, dh);
@@ -1107,7 +1364,7 @@ export class PosterEngine {
     // #ifdef APP-PLUS
     return img.path || img;
     // #endif
-    // #ifdef MP-WEIXIN
+    // #ifdef MP-WEIXIN || MP-QQ || MP-TOUTIAO || MP-ALIPAY || H5
     return img;
     // #endif
   }

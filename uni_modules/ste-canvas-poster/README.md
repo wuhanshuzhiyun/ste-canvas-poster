@@ -105,7 +105,7 @@ const tempPath = await engine.toTempFilePath();
 
 ```vue
 <template>
-  <!-- #ifdef MP-WEIXIN -->
+  <!-- #ifdef MP-WEIXIN || MP-QQ || MP-TOUTIAO || MP-ALIPAY || H5 -->
   <canvas id="myCanvas" type="2d" class="canvas" :style="canvasStyle" />
   <!-- #endif -->
   <!-- #ifdef APP-PLUS -->

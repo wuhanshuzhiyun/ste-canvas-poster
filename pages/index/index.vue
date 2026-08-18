@@ -20,6 +20,12 @@
 		<view class="canvas-wrapper" :style="[canvasSize]">
 			<canvas id="testCanvas" canvas-id="testCanvas" type="2d" style="width: 100%; height: 100%" class="test-canvas"></canvas>
 		</view>
+
+		<!-- 导出图预览 = canvas buffer 完整副本，直接反映绘制内容是否完整（地面真相），绕开屏幕显示/局部截图干扰 -->
+		<view v-if="exportedUrl" class="export-preview-wrap">
+			<view class="export-preview-title">导出图预览（地面真相：反映绘制是否完整）</view>
+			<image :src="exportedUrl" class="export-preview" mode="widthFix"></image>
+		</view>
 	</view>
 </template>
 
@@ -29,8 +35,9 @@ import { renderPoster } from "@/uni_modules/ste-canvas-poster";
 import { PosterEngine, PosterSchema, TemplateData } from "@/uni_modules/ste-canvas-poster/types.d";
 import { base64Img } from "./base64img";
 
-const canvasWidth = 710;
-const canvasHeight = 1200;
+const canvasWidth = 710;   // 设计稿宽（schema 坐标基准，所有测试用例按此设计，勿改）
+const canvasHeight = 1200; // 设计稿高
+const displayWidth = 600;  // 白卡显示宽(rpx)：<710 即为海报留出左右边距，海报按白卡实测宽自动等比缩小铺满
 
 interface TestCase {
 	name: string;
@@ -44,6 +51,7 @@ const currentTest = ref(0);
 const message = ref("");
 const messageType = ref<"success" | "error">("success");
 let engine: PosterEngine | null = null;
+const exportedUrl = ref(""); // 导出图（H5 下为 dataURL），用于页面预览，作为绘制完整性的地面真相
 
 const testCases: TestCase[] = [
 	{
@@ -581,9 +589,12 @@ const testCases: TestCase[] = [
 ];
 
 const canvasSize = computed(() => {
+	// 宽度用 vw（浏览器原生，不依赖 uni-app rpx/font-size 换算），高度用 aspect-ratio 由浏览器按宽高比自动算出。
+	// 避免 uni-canvas 包装层 height:100% 继承链断裂导致纵向截断。
+	const wVw = (displayWidth / 750) * 100; // 600rpx → 80vw
 	return {
-		width: `${canvasWidth}rpx`,
-		height: `${canvasHeight}rpx`,
+		width: `${wVw.toFixed(2)}vw`,
+		aspectRatio: `${canvasWidth} / ${canvasHeight}`,
 	};
 });
 
@@ -603,9 +614,30 @@ function selectTest(index: number) {
 	engine = null;
 }
 
+function fixCanvasSize() {
+	// #ifdef H5
+	// uni-app H5 把 <canvas type="2d"> 包成 <uni-canvas>，内部再套 <canvas class="uni-canvas-canvas">。
+	// 真机上 height:100% 继承链偶发断裂，导致内部 canvas 只有默认高度、纵向截断。
+	// 这里用 JS 取 wrapper 宽度后按设计宽高比直接算出 px 高度，并强制所有相关元素 100% 填满。
+	const wrapper = document.querySelector('.canvas-wrapper');
+	if (!wrapper) return;
+	const rect = wrapper.getBoundingClientRect();
+	const targetH = (rect.width * canvasHeight) / canvasWidth;
+	wrapper.style.height = `${targetH}px`;
+	['uni-canvas', '.uni-canvas-canvas', 'canvas.test-canvas', 'canvas'].forEach((sel) => {
+		const el = wrapper.querySelector(sel);
+		if (el) {
+			el.style.width = '100%';
+			el.style.height = '100%';
+		}
+	});
+	// #endif
+}
+
 async function renderCanvas() {
 	try {
 		message.value = "";
+		fixCanvasSize();
 		const testCase = testCases[currentTest.value];
 		uni.showLoading({ title: "渲染中......" });
 		const result = await renderPoster({
@@ -638,8 +670,9 @@ async function toTempFilePath() {
 	try {
 		const result = await engine.toTempFilePath();
 		if (result) {
-			message.value = result;
+			message.value = "导出成功";
 			messageType.value = "success";
+			exportedUrl.value = result; // H5 下 result 为 dataURL，直接用于页面预览
 		} else {
 			message.value = "导出失败";
 			messageType.value = "error";
@@ -721,10 +754,19 @@ async function saveToAlbum() {
 .canvas-wrapper {
 	background-color: #fff;
 	border-radius: 12rpx;
-	display: flex;
-	justify-content: center;
-	align-items: center;
-	margin-bottom: 20rpx;
+	display: block;
+	margin: 0 auto 20rpx;
+	/* 双保险：行内 canvasSize 已设 aspect-ratio；这里再固定宽度，防止 uni-canvas 内部高度继承链断裂 */
+	width: 80vw;
+	overflow: visible;
+}
+
+/* 强制 uni-canvas 内部及原生 canvas 100% 填满 wrapper */
+.canvas-wrapper .uni-canvas-canvas,
+.canvas-wrapper canvas.raw-poster-canvas {
+	display: block;
+	width: 100% !important;
+	height: 100% !important;
 }
 
 .action-buttons {
@@ -752,5 +794,27 @@ async function saveToAlbum() {
 .message.error {
 	background-color: #f8d7da;
 	color: #721c24;
+}
+
+.export-preview-wrap {
+	background-color: #fff;
+	border-radius: 12rpx;
+	padding: 20rpx;
+	margin: 0 auto 20rpx;
+	text-align: center;
+}
+
+.export-preview-title {
+	font-size: 24rpx;
+	color: #007aff;
+	font-weight: bold;
+	margin-bottom: 16rpx;
+}
+
+.export-preview {
+	width: 100%;
+	border: 1rpx solid #eee;
+	border-radius: 8rpx;
+	display: block;
 }
 </style>
