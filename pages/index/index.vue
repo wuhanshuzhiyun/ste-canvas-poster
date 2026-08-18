@@ -589,13 +589,23 @@ const testCases: TestCase[] = [
 ];
 
 const canvasSize = computed(() => {
-	// 宽度用 vw（浏览器原生，不依赖 uni-app rpx/font-size 换算），高度用 aspect-ratio 由浏览器按宽高比自动算出。
+	// #ifdef H5
+	// H5：宽度用 vw（浏览器原生，不依赖 uni-app rpx/font-size 换算），高度用 aspect-ratio 由浏览器按宽高比自动算出。
 	// 避免 uni-canvas 包装层 height:100% 继承链断裂导致纵向截断。
 	const wVw = (displayWidth / 750) * 100; // 600rpx → 80vw
 	return {
 		width: `${wVw.toFixed(2)}vw`,
 		aspectRatio: `${canvasWidth} / ${canvasHeight}`,
 	};
+	// #endif
+	// #ifndef H5
+	// 非 H5（App / 小程序）：rpx 是 uni-app 原生单位，各端精确换算，
+	// 与 transformSchemaRpx 的 getWindowWidth()/750 基准一致，尺寸自洽。
+	return {
+		width: `${canvasWidth}rpx`,
+		height: `${canvasHeight}rpx`,
+	};
+	// #endif
 });
 
 onBeforeUnmount(() => {
@@ -751,6 +761,7 @@ async function saveToAlbum() {
 	color: #fff;
 }
 
+/* #ifdef H5 */
 .canvas-wrapper {
 	background-color: #fff;
 	border-radius: 12rpx;
@@ -768,6 +779,18 @@ async function saveToAlbum() {
 	width: 100% !important;
 	height: 100% !important;
 }
+/* #endif */
+
+/* #ifndef H5 */
+.canvas-wrapper {
+	background-color: #fff;
+	border-radius: 12rpx;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	margin-bottom: 20rpx;
+}
+/* #endif */
 
 .action-buttons {
 	display: flex;
