@@ -227,7 +227,38 @@ export function loadImage(canvas, src) {
     // #ifndef H5
     // #ifndef APP-PLUS
     const img = canvas.createImage();
-    img.onload = () => resolve(img);
+    img.onload = () => {
+      // 抖音/支付宝等平台 canvas.createImage() 的 onload 回调中
+      // img.width / img.height 可能未设置（仍为 0），导致：
+      //  1. hasSize=false → cover/contain/widthFix/heightFix 全部退化为 fill
+      //  2. widthFix/heightFix 算高/宽时 0/0=NaN → drawImage 静默丢弃
+      // 兜底：用 uni.getImageInfo 补齐自然尺寸（仍以 img 本身作为 drawImage 入参）
+      if (img.width > 0 && img.height > 0) {
+        resolve(img);
+        return;
+      }
+      // #ifdef MP-TOUTIAO
+      console.error(
+        `[TT-DIAG] loadImage: onload 后 width/height 为 ${img.width}x${img.height}，` +
+          `触发 getImageInfo 兜底: ${normalizedSrc.substring(0, 60)}`,
+      );
+      // #endif
+      uni.getImageInfo({
+        src: normalizedSrc,
+        success: (res) => {
+          // width/height 可能是只读 getter，赋值失败时静默降级（引擎走 fill 兜底）
+          try {
+            if (img.width <= 0) img.width = res.width;
+            if (img.height <= 0) img.height = res.height;
+          } catch (e) { }
+          resolve(img);
+        },
+        fail: () => {
+          // 拿不到尺寸也 resolve：hasSize=false 时引擎走 fill 兜底，至少能画出图
+          resolve(img);
+        },
+      });
+    };
     img.onerror = (e) => {
       console.error("[PosterEngine] 图片加载失败:", e);
       reject(new Error(`图片加载失败: ${e}`));
@@ -292,6 +323,15 @@ export class PosterEngine {
     // #ifdef MP-WEIXIN || MP-QQ || MP-TOUTIAO || MP-ALIPAY
     this.canvas.width = Math.round(width * dpr);
     this.canvas.height = Math.round(height * dpr);
+    // #endif
+
+    // #ifdef MP-TOUTIAO
+    // 抖音端诊断：定位图片位置错乱问题（schema 逻辑尺寸 / buffer / dpr / rpx 基准）
+    console.error(
+      `[TT-DIAG] render: schema=${width}x${height} ` +
+        `buffer=${this.canvas.width}x${this.canvas.height} ` +
+        `dpr=${dpr} windowWidth=${uni.getSystemInfoSync().windowWidth}`,
+    );
     // #endif
 
     // #ifdef H5
@@ -684,7 +724,9 @@ export class PosterEngine {
       if (resolvedSrc) {
         try {
           const img = await this._loadImageCached(resolvedSrc);
-          css.height = Math.ceil((img.height / img.width) * resolvedWidth);
+          if (img.width > 0 && img.height > 0) {
+            css.height = Math.ceil((img.height / img.width) * resolvedWidth);
+          }
         } catch (e) { }
       }
     }
@@ -694,8 +736,10 @@ export class PosterEngine {
       if (resolvedSrc) {
         try {
           const img = await this._loadImageCached(resolvedSrc);
-          css.width = Math.ceil((img.width / img.height) * (css.height || 0));
-          resolvedWidth = css.width;
+          if (img.width > 0 && img.height > 0) {
+            css.width = Math.ceil((img.width / img.height) * (css.height || 0));
+            resolvedWidth = css.width;
+          }
         } catch (e) { }
       }
     }
@@ -849,6 +893,15 @@ export class PosterEngine {
       const ctx = this.ctx;
       const imgSrc = this._getImageSrc(img);
       const hasSize = img.width > 0 && img.height > 0;
+
+      // #ifdef MP-TOUTIAO
+      // 抖音端诊断：逐图打印自然尺寸 + 绘制坐标，定位"位置不准确"
+      console.error(
+        `[TT-DIAG] drawImage: fit=${objectFit} ` +
+          `img=${img.width}x${img.height} hasSize=${hasSize} ` +
+          `box={x:${x},y:${y},w:${w},h:${h}}`,
+      );
+      // #endif
 
       if (hasSize && objectFit === "cover") {
         const { sx, sy, sw, sh, dx, dy, dw, dh } = calcCover(img.width, img.height, x, y, w, h);

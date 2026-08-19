@@ -785,10 +785,16 @@ async function saveToAlbum() {
 .canvas-wrapper {
 	background-color: #fff;
 	border-radius: 12rpx;
-	display: flex;
-	justify-content: center;
-	align-items: center;
-	margin-bottom: 20rpx;
+	margin: 0 auto 20rpx;
+	overflow: hidden;
+}
+
+/* 双保险：canvas 行内已有 style="width:100%;height:100%"，这里再以类选择器兜底，
+   防止抖音等平台 flex/继承链异常导致 canvas 显示尺寸与 wrapper 不一致 */
+.canvas-wrapper .test-canvas {
+	display: block;
+	width: 100%;
+	height: 100%;
 }
 /* #endif */
 

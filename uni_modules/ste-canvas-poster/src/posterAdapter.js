@@ -281,7 +281,16 @@ export function getCanvasNode(selector, vm) {
       .select(selector)
       .fields({ node: true, size: true })
       .exec((res) => {
-        const node = res && res[0] && res[0].node;
+        const info = res && res[0];
+        const node = info && info.node;
+        // #ifdef MP-TOUTIAO
+        // 抖音端诊断：size 为 canvas 实际渲染的 CSS 尺寸。
+        // 若与 schema 逻辑尺寸（rpx→px 后）差异大，说明 canvas CSS 高度塌缩（显示层问题）。
+        console.error(
+          `[TT-DIAG] getCanvasNode: node=${node ? "ok" : "null"} ` +
+            `size=${info ? `${Math.round(info.width || 0)}x${Math.round(info.height || 0)}` : "null"}`,
+        );
+        // #endif
         if (node) {
           resolve(node);
         } else {
