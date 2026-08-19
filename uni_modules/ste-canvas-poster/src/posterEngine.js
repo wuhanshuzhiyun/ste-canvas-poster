@@ -226,44 +226,90 @@ export function loadImage(canvas, src) {
 
     // #ifndef H5
     // #ifndef APP-PLUS
-    const img = canvas.createImage();
-    img.onload = () => {
-      // 抖音/支付宝等平台 canvas.createImage() 的 onload 回调中
-      // img.width / img.height 可能未设置（仍为 0），导致：
-      //  1. hasSize=false → cover/contain/widthFix/heightFix 全部退化为 fill
-      //  2. widthFix/heightFix 算高/宽时 0/0=NaN → drawImage 静默丢弃
-      // 兜底：用 uni.getImageInfo 补齐自然尺寸（仍以 img 本身作为 drawImage 入参）
-      if (img.width > 0 && img.height > 0) {
-        resolve(img);
-        return;
-      }
-      // #ifdef MP-TOUTIAO
-      console.error(
-        `[TT-DIAG] loadImage: onload 后 width/height 为 ${img.width}x${img.height}，` +
-          `触发 getImageInfo 兜底: ${normalizedSrc.substring(0, 60)}`,
-      );
-      // #endif
+    // 通用加载：createImage + onload（宽度为 0 时 getImageInfo 兜底补尺寸）
+    const startImageLoad = (imageSrc) => {
+      const img = canvas.createImage();
+      img.onload = () => {
+        // 抖音/支付宝等平台 canvas.createImage() 的 onload 回调中
+        // img.width / img.height 可能未设置（仍为 0），导致：
+        //  1. hasSize=false → cover/contain/widthFix/heightFix 全部退化为 fill
+        //  2. widthFix/heightFix 算高/宽时 0/0=NaN → drawImage 静默丢弃
+        // 兜底：用 uni.getImageInfo 补齐自然尺寸（仍以 img 本身作为 drawImage 入参）
+        if (img.width > 0 && img.height > 0) {
+          resolve(img);
+          return;
+        }
+        uni.getImageInfo({
+          src: imageSrc,
+          success: (res) => {
+            // width/height 可能是只读 getter，赋值失败时静默降级（引擎走 fill 兜底）
+            try {
+              if (img.width <= 0) img.width = res.width;
+              if (img.height <= 0) img.height = res.height;
+            } catch (e) { }
+            resolve(img);
+          },
+          fail: () => {
+            // 拿不到尺寸也 resolve：hasSize=false 时引擎走 fill 兜底，至少能画出图
+            resolve(img);
+          },
+        });
+      };
+      img.onerror = (e) => {
+        console.error("[PosterEngine] 图片加载失败:", e);
+        reject(new Error(`图片加载失败: ${e}`));
+      };
+      img.src = imageSrc;
+    };
+
+    // #ifdef MP-TOUTIAO
+    // ★ 抖音端关键差异：drawImage 要求图片已落地本地。
+    // 网络图直接 createImage 时，onload 虽会触发（能拿到宽高），但 drawImage 阶段
+    // TMA 内部会对网络 src 异步二次拉取，导致三连症状：
+    //  1. 图片延迟数秒才显示（等于再下载一次，且文字先出来）
+    //  2. TMA 警告"请在 image.onload 事件后使用 image 对象"
+    //  3. 二次栅格化发生在渲染循环结束、ctx.restore() 之后，transform 已回到
+    //     identity → 图片落在画布左上角、缩小为 1/dpr
+    // 官方推荐模式（抖音开放平台论坛）：先 getImageInfo 把网络图下载为本地临时
+    // 路径，再用本地路径 createImage，drawImage 才是同步、立即、带 transform 的。
+    if (/^https?:/i.test(normalizedSrc)) {
       uni.getImageInfo({
         src: normalizedSrc,
         success: (res) => {
-          // width/height 可能是只读 getter，赋值失败时静默降级（引擎走 fill 兜底）
-          try {
-            if (img.width <= 0) img.width = res.width;
-            if (img.height <= 0) img.height = res.height;
-          } catch (e) { }
-          resolve(img);
+          const localPath = res.path || res.localPath || normalizedSrc;
+          const img = canvas.createImage();
+          img.onload = () => {
+            if (!(img.width > 0) || !(img.height > 0)) {
+              try {
+                if (img.width <= 0) img.width = res.width;
+                if (img.height <= 0) img.height = res.height;
+              } catch (e) { }
+            }
+            // #ifdef MP-TOUTIAO
+            console.error(
+              `[TT-DIAG] loadImage: 网络图已本地化 ${img.width}x${img.height} ` +
+                `path=${String(localPath).substring(0, 50)}`,
+            );
+            // #endif
+            resolve(img);
+          };
+          img.onerror = (e) => {
+            console.error("[PosterEngine] 本地化图片 createImage 失败，回退网络直载:", e);
+            startImageLoad(normalizedSrc);
+          };
+          img.src = localPath;
         },
         fail: () => {
-          // 拿不到尺寸也 resolve：hasSize=false 时引擎走 fill 兜底，至少能画出图
-          resolve(img);
+          // 域名白名单未配置等场景：回退旧的直接网络加载（行为同前，不更糟）
+          console.error("[TT-DIAG] loadImage: getImageInfo 失败，回退网络直载:", normalizedSrc);
+          startImageLoad(normalizedSrc);
         },
       });
-    };
-    img.onerror = (e) => {
-      console.error("[PosterEngine] 图片加载失败:", e);
-      reject(new Error(`图片加载失败: ${e}`));
-    };
-    img.src = normalizedSrc;
+      return;
+    }
+    // #endif
+
+    startImageLoad(normalizedSrc);
     // #endif
     // #endif
   });
@@ -292,6 +338,7 @@ export class PosterEngine {
     const { fileType = "png", quality = 1 } = exportOptions || {};
     this.exportOptions = { fileType, quality };
     this._imgCache = new Map();
+    this._imgPending = new Map();
     this._tplCache = new Map();
     this._splitCache = new Map();
     this._destroyed = false;
@@ -321,8 +368,19 @@ export class PosterEngine {
     this._logicalHeight = height;
 
     // #ifdef MP-WEIXIN || MP-QQ || MP-TOUTIAO || MP-ALIPAY
-    this.canvas.width = Math.round(width * dpr);
-    this.canvas.height = Math.round(height * dpr);
+    // ★ mp-toutiao 等平台对同值 canvas.width 赋值可能是 no-op（不清除画布内容、
+    // 不重置 transform/save 栈）。1x1 中转也不可靠（可能被批处理合并，只保留
+    // 最终同值 → 等价于 no-op）。改用显式 setTransform(identity) + clearRect
+    // 保证画布内容完全清空，不依赖 canvas.width 副作用。
+    const _targetW = Math.round(width * dpr);
+    const _targetH = Math.round(height * dpr);
+    this.canvas.width = _targetW;
+    this.canvas.height = _targetH;
+    // 显式重置 transform 到 identity，再 clearRect 清空所有像素
+    try {
+      this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+      this.ctx.clearRect(0, 0, _targetW, _targetH);
+    } catch (e) { }
     // #endif
 
     // #ifdef MP-TOUTIAO
@@ -332,6 +390,7 @@ export class PosterEngine {
         `buffer=${this.canvas.width}x${this.canvas.height} ` +
         `dpr=${dpr} windowWidth=${uni.getSystemInfoSync().windowWidth}`,
     );
+    console.error(`[TT-DIAG] clearRect(identity): ${_targetW}x${_targetH} canvas cleared`);
     // #endif
 
     // #ifdef H5
@@ -385,19 +444,81 @@ export class PosterEngine {
     this.canvas.height = height;
     // #endif
 
+    // ★ 预加载全部图片（背景图 + views 图片）——置于一切 ctx 变换操作之前。
+    // 旧流程：ctx.scale() → await preload（秒级网络间隙）→ 绘制。
+    // 抖音端：长时间 async 间隙可能导致 canvas context transform 状态丢失，
+    // 并触发 TMA 警告"请在 image.onload 事件后使用 image 对象"，图片绘制位置/大小错乱。
+    // 新流程：图片全部入缓存后才操作 ctx，后续绘制均为缓存命中（微任务），无长异步间隙。
+    const _bgSrc = backgroundImage ? this._resolveTemplate(backgroundImage) : "";
+    if (_bgSrc) {
+      try {
+        await this._loadImageCached(_bgSrc);
+      } catch (e) {
+        // 背景图加载失败容忍，绘制时走背景色兜底
+      }
+    }
+    await this._preloadAllImages(views);
+
+    // #ifdef MP-TOUTIAO
+    console.error(
+      `[TT-DIAG] preload done: cached=${this._imgCache.size} pending=${this._imgPending.size}`,
+    );
+    // #endif
+
+    // #ifdef H5
+    this._drawLog = true;
+    this._drawLogIdx = 1;
+    this._overflowNodes = [];
+    // #endif
+
     const ctx = this.ctx;
 
     ctx.save();
-
+    // try/finally：绘制循环中任何节点抛异常（如 measureText/图片解码失败）都不得
+    // 跳过 restore——否则 save 栈残留 + transform 残留，污染同一 canvas 节点的下一次渲染
+    try {
     // #ifdef MP-WEIXIN || MP-QQ || MP-TOUTIAO || MP-ALIPAY
-    ctx.scale(dpr, dpr);
+    // ★ 用 setTransform（绝对设置）替代 scale（相对乘法）。
+    // scale 在 save() 之后调用，若 save 捕获到上一次渲染残留的 transform
+    //（mp-toutiao 对同值 canvas.width 赋值可能不重置 transform），
+    // 则 scale 会叠加 → dpr × 残留dpr = dpr² → 位置大小全错。
+    // setTransform 绝对设置，不受残留影响。
+    // #ifdef MP-TOUTIAO
+    if (ctx.getTransform) {
+      const _tBefore = ctx.getTransform();
+      console.error(`[TT-DIAG] transform BEFORE: a=${_tBefore.a} d=${_tBefore.d} (residual from prev render)`);
+    }
+    console.error(`[TT-DIAG] setTransform available: ${typeof ctx.setTransform}`);
+    // #endif
+
+    // ★ 先清空画布再设 transform！
+    // mp-toutiao 的 clearRect 可能重置 transform 到 identity（非标准行为）。
+    // 旧顺序：setTransform(dpr) → clearRect → draw → drawImage 在 identity 下执行（1/3 大小）
+    // 新顺序：setTransform(identity) → clearRect → setTransform(dpr) → draw → 正确
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, _targetW, _targetH);
+    // #ifdef MP-TOUTIAO
+    if (ctx.getTransform) {
+      const _tAfterClear = ctx.getTransform();
+      console.error(`[TT-DIAG] transform AFTER clearRect: a=${_tAfterClear.a} d=${_tAfterClear.d} (expect 1 1 if clearRect resets)`);
+    }
+    // #endif
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    // #ifdef MP-TOUTIAO
+    if (ctx.getTransform) {
+      const _tAfter = ctx.getTransform();
+      console.error(`[TT-DIAG] transform AFTER setTransform: a=${_tAfter.a} d=${_tAfter.d} (expect a=${dpr} d=${dpr})`);
+    }
+    // #endif
     // #endif
 
     // #ifdef H5
     // 把逻辑坐标系（width×height）等比缩放到实际显示尺寸，海报始终铺满卡片（任意 dpr / rpx 基准都正确）
     console.error(`[POSTER-DIAG] 3.render-scale-before: canvas.attrs=${this.canvas.width}x${this.canvas.height} canvas.css=${this.canvas.clientWidth}x${this.canvas.clientHeight}`);
     const _fit = width > 0 ? _displayW / width : 1;
-    ctx.scale(dpr * _fit, dpr * _fit);
+    // 用 setTransform（绝对）替代 scale（相对），避免跨渲染 transform 残留叠加
+    ctx.setTransform(dpr * _fit, 0, 0, dpr * _fit, 0, 0);
     this._renderScale = dpr * _fit; // 1 逻辑px = 多少设备px（供逐节点绘制日志使用）
     console.error(`[POSTER-DIAG] 3.render-scale-after: ctx.canvas.attrs=${ctx.canvas.width}x${ctx.canvas.height}`);
     // #endif
@@ -408,14 +529,18 @@ export class PosterEngine {
     }
 
     if (backgroundImage) {
-      const resolvedBg = this._resolveTemplate(backgroundImage);
-      if (resolvedBg) {
-        try {
-          const img = await this._loadImageCached(resolvedBg);
+      if (_bgSrc) {
+        // 已预加载，同步取缓存（禁止 await——微任务 yield 会导致抖音端 transform 丢失）
+        const img = this._getCachedImage(_bgSrc);
+        if (img) {
           const imgSrc = this._getImageSrc(img);
+          // #ifdef MP-TOUTIAO
+          // 同 _drawImage：背景图绘制前重新断言 transform（绝对设置、幂等）
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+          // #endif
           ctx.drawImage(imgSrc, 0, 0, width, height);
-        } catch (e) {
-          console.warn("[PosterEngine] 背景图加载失败，使用背景色", e);
+        } else {
+          console.warn("[PosterEngine] 背景图缓存未命中，使用背景色");
           this._fillBackground(background, width, height);
         }
       }
@@ -423,16 +548,12 @@ export class PosterEngine {
       this._fillBackground(background, width, height);
     }
 
-    await this._preloadAllImages(views);
-
-    // #ifdef H5
-    this._drawLog = true;
-    this._drawLogIdx = 1;
-    this._overflowNodes = [];
-    // #endif
-
+    // ★ 绘制循环必须纯同步：任何 await（即使图片已缓存，await resolved Promise
+    // 仍产生微任务 yield）都会让 mp-toutiao 在微任务边界重置 canvas transform，
+    // 导致后续 drawImage 以 identity transform 执行 → 图片 1/dpr 缩小 + 左上角堆积。
+    // 所有图片已在上方 preload 阶段入缓存，绘制阶段用 _getCachedImage 同步获取。
     for (const node of views) {
-      await this._drawNode(node, 0, 0);
+      this._drawNode(node, 0, 0);
     }
 
     // #ifdef H5
@@ -499,8 +620,17 @@ export class PosterEngine {
       console.error(`[POSTER-DIAG] 8.export-check: 请立即点击“导出为图片”，若导出的图片是 ${this.canvas.width}x${this.canvas.height} 且包含完整扫描线，则绘制完整，问题在显示层/截图范围。`);
     }
     // #endif
-
+    } finally {
     ctx.restore();
+    // #ifdef MP-TOUTIAO
+    // 诊断：restore 后的 transform 就是下一次渲染 save() 捕获的初始值。
+    // 若非 identity（a=1 d=1），说明 restore 未还原 transform → 下次 setTransform 必须覆盖它。
+    if (ctx.getTransform) {
+      const _tEnd = ctx.getTransform();
+      console.error(`[TT-DIAG] transform AFTER restore: a=${_tEnd.a} d=${_tEnd.d} (residual for next render)`);
+    }
+    // #endif
+    }
 
     // #ifdef H5
     // 视口诊断：判断 canvas 是否因为“超出视口底部”而被用户误认为“只显示一半”。
@@ -692,7 +822,10 @@ export class PosterEngine {
   // 私有方法：绘制节点
   // ─────────────────────────────────────────────
 
-  async _drawNode(node, offsetX = 0, offsetY = 0, parentWidth = null, parentHeight = null) {
+  // ★ 纯同步方法（禁止 async/await）：mp-toutiao canvas 在微任务边界会重置 transform，
+  // 绘制链上任何 await 都会导致后续 drawImage 位置/大小错乱。
+  // 图片一律通过 _getCachedImage 同步获取（render 已在绘制前 preload 全部图片）。
+  _drawNode(node, offsetX = 0, offsetY = 0, parentWidth = null, parentHeight = null) {
     const { type } = node;
     const css = node.css || {};
 
@@ -722,25 +855,21 @@ export class PosterEngine {
     if (type === "image" && css.height == null && css.objectFit === "widthFix") {
       const resolvedSrc = this._resolveTemplate(node.src);
       if (resolvedSrc) {
-        try {
-          const img = await this._loadImageCached(resolvedSrc);
-          if (img.width > 0 && img.height > 0) {
-            css.height = Math.ceil((img.height / img.width) * resolvedWidth);
-          }
-        } catch (e) { }
+        const img = this._getCachedImage(resolvedSrc);
+        if (img && img.width > 0 && img.height > 0) {
+          css.height = Math.ceil((img.height / img.width) * resolvedWidth);
+        }
       }
     }
 
     if (type === "image" && css.width == null && css.objectFit === "heightFix") {
       const resolvedSrc = this._resolveTemplate(node.src);
       if (resolvedSrc) {
-        try {
-          const img = await this._loadImageCached(resolvedSrc);
-          if (img.width > 0 && img.height > 0) {
-            css.width = Math.ceil((img.width / img.height) * (css.height || 0));
-            resolvedWidth = css.width;
-          }
-        } catch (e) { }
+        const img = this._getCachedImage(resolvedSrc);
+        if (img && img.width > 0 && img.height > 0) {
+          css.width = Math.ceil((img.width / img.height) * (css.height || 0));
+          resolvedWidth = css.width;
+        }
       }
     }
 
@@ -764,8 +893,9 @@ export class PosterEngine {
 
     const ctx = this.ctx;
     ctx.save();
-
-    // #ifdef H5
+    // try/finally：子绘制方法抛异常不得跳过 restore，否则 save 栈失衡污染后续渲染
+    try {
+      // #ifdef H5
     // 逐节点绘制日志：打印每个元素在【逻辑坐标系】下的盒子（x/y/w/h，已含 rpx→px 转换结果），
     // 并自动判定是否超出画布边界：right = x+w 是否 > 画布宽；bottom = y+h 是否 > 画布高。
     // 一旦超出即打 ⚠️OVERFLOW，并把序号记入 _overflowNodes，供 render 末尾汇总。
@@ -808,25 +938,26 @@ export class PosterEngine {
 
     switch (type) {
       case "view":
-        await this._drawView(node);
+        this._drawView(node);
         break;
       case "image":
-        await this._drawImage(node);
+        this._drawImage(node);
         break;
       case "text":
         this._drawText(node, savedWidth);
         break;
       case "qrcode":
-        await this._drawQRCode(node);
+        this._drawQRCode(node);
         break;
       case "barcode":
-        await this._drawBarcode(node);
+        this._drawBarcode(node);
         break;
       default:
         console.warn(`[PosterEngine] 未知元素类型: ${type}`);
     }
-
-    ctx.restore();
+    } finally {
+      ctx.restore();
+    }
     css.left = savedLeft;
     css.top = savedTop;
     css.width = savedWidth;
@@ -880,7 +1011,8 @@ export class PosterEngine {
     }
   }
 
-  async _drawImage(node) {
+  // ★ 纯同步方法：图片从缓存同步获取（render 已 preload），禁止 await
+  _drawImage(node) {
     const { src, css } = node;
     const resolvedSrc = this._resolveTemplate(src);
     if (!resolvedSrc || resolvedSrc === "") return;
@@ -889,17 +1021,31 @@ export class PosterEngine {
     const objectFit = css.objectFit || "fill";
 
     try {
-      const img = await this._loadImageCached(resolvedSrc);
+      const img = this._getCachedImage(resolvedSrc);
+      if (!img) {
+        console.warn(`[PosterEngine] 图片缓存未命中，跳过绘制: ${resolvedSrc}`);
+        return;
+      }
       const ctx = this.ctx;
       const imgSrc = this._getImageSrc(img);
       const hasSize = img.width > 0 && img.height > 0;
 
       // #ifdef MP-TOUTIAO
-      // 抖音端诊断：逐图打印自然尺寸 + 绘制坐标，定位"位置不准确"
+      // ★ 保险：图片绘制前重新绝对设置 transform。
+      // 抖音端 transform 状态在绘制链路中可能被平台重置（clearRect / 异步图片栅格化
+      // 等场景），setTransform 是绝对设置、幂等，重复调用无副作用，可确保 drawImage
+      // 执行瞬间 transform 必为 dpr 缩放。
+      ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+      // 抖音端诊断：逐图打印自然尺寸 + 绘制坐标 + 绘制瞬间 transform
+      let _ttTransform = "";
+      if (ctx.getTransform) {
+        const _t = ctx.getTransform();
+        _ttTransform = ` transform: a=${_t.a} d=${_t.d}`;
+      }
       console.error(
         `[TT-DIAG] drawImage: fit=${objectFit} ` +
           `img=${img.width}x${img.height} hasSize=${hasSize} ` +
-          `box={x:${x},y:${y},w:${w},h:${h}}`,
+          `box={x:${x},y:${y},w:${w},h:${h}}${_ttTransform}`,
       );
       // #endif
 
@@ -1092,7 +1238,8 @@ export class PosterEngine {
     ctx.stroke();
   }
 
-  async _drawView(node) {
+  // ★ 纯同步方法（禁止 async/await，理由同 _drawNode）
+  _drawView(node) {
     const { css, views: children = [] } = node;
     const { left: x, top: y, width: w, height: h } = css;
 
@@ -1102,10 +1249,10 @@ export class PosterEngine {
 
     const display = css.display;
     if (display === "flex") {
-      await this._drawFlexChildren(node);
+      this._drawFlexChildren(node);
     } else {
       for (const child of children) {
-        await this._drawNode(child, x, y, w, h);
+        this._drawNode(child, x, y, w, h);
       }
     }
   }
@@ -1165,7 +1312,8 @@ export class PosterEngine {
     return (this._getLineHeightPx(css) - ascent - descent) / 2 + ascent;
   }
 
-  async _drawFlexChildren(node) {
+  // ★ 纯同步方法（禁止 async/await，理由同 _drawNode）
+  _drawFlexChildren(node) {
     const { css, views: children = [] } = node;
     const { left: x, top: y, width: w, height: h } = css;
     const flexDirection = css.flexDirection || "row";
@@ -1258,7 +1406,7 @@ export class PosterEngine {
       childCss.top = cy;
       childCss.width = cw;
       childCss.height = ch;
-      await this._drawNode(child, 0, 0, cw, ch);
+      this._drawNode(child, 0, 0, cw, ch);
       childCss.left = savedLeft;
       childCss.top = savedTop;
       childCss.width = savedWidth;
@@ -1311,7 +1459,7 @@ export class PosterEngine {
     }
   }
 
-  async _drawQRCode(node) {
+  _drawQRCode(node) {
     const qrText = node.text ?? node.src ?? "";
     const resolvedText = this._resolveTemplate(qrText);
     if (resolvedText == null || resolvedText === "") return;
@@ -1346,7 +1494,7 @@ export class PosterEngine {
     }
   }
 
-  async _drawBarcode(node) {
+  _drawBarcode(node) {
     const rawText = node.text ?? node.src ?? "";
     const resolvedText = this._resolveTemplate(rawText);
     if (resolvedText == null || resolvedText === "") return;
@@ -1422,19 +1570,41 @@ export class PosterEngine {
     // #endif
   }
 
+  // 同步获取已缓存的图片（绘制阶段专用，禁止 await——微任务 yield 会导致
+  // mp-toutiao canvas transform 被重置，图片以 identity transform 绘制 → 1/dpr 缩小+左上角）
+  // 返回 null 表示缓存未命中（preload 失败或未执行），调用方按"加载失败"兜底。
+  _getCachedImage(src) {
+    return this._imgCache.get(src) || null;
+  }
+
   async _loadImageCached(src) {
     if (this._imgCache.has(src)) {
       return this._imgCache.get(src);
     }
-    const img = await loadImage(this.canvas, src);
-
-    if (this._imgCache.size >= MAX_IMAGE_CACHE_SIZE) {
-      const firstKey = this._imgCache.keys().next().value;
-      this._imgCache.delete(firstKey);
+    // 在途去重：并发预加载时，多个节点引用同一 URL（如 5 张图共用 {{coverImage}}）
+    // 会各自触发 loadImage → 重复 canvas.createImage() + 重复网络下载
+    // （抖音端触发 TMA 警告"请在 image.onload 事件后使用 image 对象"并导致渲染错乱）。
+    // 同 src 命中在途 Promise 时直接复用同一次加载。
+    if (this._imgPending.has(src)) {
+      return this._imgPending.get(src);
     }
-
-    this._imgCache.set(src, img);
-    return img;
+    const p = loadImage(this.canvas, src).then(
+      (img) => {
+        if (this._imgCache.size >= MAX_IMAGE_CACHE_SIZE) {
+          const firstKey = this._imgCache.keys().next().value;
+          this._imgCache.delete(firstKey);
+        }
+        this._imgCache.set(src, img);
+        this._imgPending.delete(src);
+        return img;
+      },
+      (err) => {
+        this._imgPending.delete(src);
+        throw err;
+      },
+    );
+    this._imgPending.set(src, p);
+    return p;
   }
 
   async _preloadAllImages(views) {
